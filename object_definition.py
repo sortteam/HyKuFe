@@ -251,7 +251,7 @@ def createJob(username, image, replicas, train_mode="cpu"):
     pod_template_spec.spec = ""
 
     # Pod Spec 정의
-    pod_spec = client.V1PodSpec(containers=[""], restart_policy="Never")
+    pod_spec = client.V1PodSpec(containers=[""], restart_policy="OnFailure")
     # Container 정의
     container = client.V1Container(name=job_name + "-master")
 

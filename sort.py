@@ -4,7 +4,7 @@ import yaml
 from kubernetes import client,watch
 from kubernetes.client.rest import ApiException
 from object_definition import *
-
+from time import sleep
 import requests
 
 class TrainingManager:
@@ -51,6 +51,8 @@ class TrainingManager:
 
 
     def __init__(self, username, token, kube_master_ip, entry_point, train_data_dir=None, test_data_dir=None, replicas = 2, namespace = "default", image="uber/horovod:0.12.1-tf1.8.0-py3.5"):
+
+        self.global_name = "{username}-horovod".format(username = username)
 
         self.entry_point = entry_point
 
@@ -158,7 +160,7 @@ class TrainingManager:
 
     def deleteAllObject(self):
         try:
-            #master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace=self.namespace, label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
+            master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace=self.namespace, label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
 
             self.core_v1_api_instance.delete_namespaced_config_map(self.global_name, self.namespace)
             self.core_v1_api_instance.delete_namespaced_secret(self.global_name, self.namespace)
@@ -167,7 +169,7 @@ class TrainingManager:
             self.core_v1_api_instance.delete_namespaced_service(self.global_name + "-master", self.namespace)
             self.batch_v1_api_instance.delete_namespaced_job(self.global_name, self.namespace)
 
-            #self.core_v1_api_instance.delete_namespaced_pod(name=master_pod_name, namespace=self.namespace)
+            self.core_v1_api_instance.delete_namespaced_pod(name=master_pod_name, namespace=self.namespace)
         except ApiException as e:
             pass
 
@@ -179,22 +181,42 @@ class TrainingManager:
             self.createAllObject()
             # 로그 출력
 
-            try:
-                # Master 파드의 이름을 찾는다.
-                master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace = self.namespace, label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
-                print(master_pod_name)
-                stream = watch.Watch().stream(self.core_v1_api_instance.read_namespaced_pod_log, name=master_pod_name , namespace=self.namespace)
 
+            sleep(1)
+
+            # Master 파드의 이름을 찾는다.
+            master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace = self.namespace, label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
+
+            for i in range(0, 500):
+                sleep(3)
+                # Master 파드의 활성 여부를 3초 간격으로 10번 확인한다.
+                master_pod = self.core_v1_api_instance.read_namespaced_pod_status(name=master_pod_name, namespace=self.namespace)
+                print("Now Master Pod Status is " + master_pod.status.phase)
+                if master_pod.status.phase == "Running":
+                    break
+
+            master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace=self.namespace,label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
+
+            while True:
+                master_job_status = self.batch_v1_api_instance.read_namespaced_job_status(name=self.global_name, namespace=self.namespace)
+                print(master_job_status.status.failed, master_job_status.status.succeeded)
+
+                if master_job_status.status.active != 1:
+                    print("active is Not 1 - now Active is : {0}".format(master_job_status.status.active))
+                    break
+
+                # if master_job_status.status.failed != 0 or master_job_status.status.succeeded != 0:
+                #     break
+
+                stream = watch.Watch().stream(self.core_v1_api_instance.read_namespaced_pod_log, name=master_pod_name, namespace=self.namespace)
                 for event in stream:
                     print(event)
-            except ApiException as e:
-                print('Found exception in reading the logs')
+
 
         except Exception as e:
             print(e)
         finally:
-            pass
-            #self.deleteAll()
+            self.deleteAll()
         # 로그와 상태를 보고 끝났는지 확인
 
         #
@@ -208,6 +230,6 @@ tm = TrainingManager("ywj", token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOi
                      image="horovod/horovod:0.16.4-tf1.14.0-torch1.1.0-mxnet1.4.1-py3.6"
                      )
 
-tm.sendDataToS3()
+#tm.sendDataToS3()
 tm.deleteAllObject()
 tm.runTrain()
