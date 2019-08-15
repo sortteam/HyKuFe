@@ -7,7 +7,7 @@ from object_definition import *
 from time import sleep
 import requests
 
-class TrainingManager:
+class TrainingClusterManager:
     # 사용자 이름
     username = None
 
@@ -29,13 +29,17 @@ class TrainingManager:
     s3_url = "http://ywj-horovod.s3.ap-northeast-2.amazonaws.com"
 
 
+    # Host Network
+    is_host_network = None
+    ssh_port = None
+
     # 서버 정보
     token = None
     kube_master_ip = None
 
 
+    # Kubernetes Client API
     api_client = None
-
     core_v1_api_instance = None
     apps_v1_api_instance = None
     batch_v1_api_instance = None
@@ -50,10 +54,11 @@ class TrainingManager:
 
 
 
-    def __init__(self, username, token, kube_master_ip, entry_point, train_data_dir=None, test_data_dir=None, replicas = 2, namespace = "default", image="uber/horovod:0.12.1-tf1.8.0-py3.5"):
+    def __init__(self, username, token, kube_master_ip, entry_point, train_data_dir=None, test_data_dir=None, replicas = 2, namespace = "default", image="uber/horovod:0.12.1-tf1.8.0-py3.5", is_host_network=False, ssh_port="22"):
 
         self.global_name = "{username}-horovod".format(username = username)
-
+        self.is_host_network = is_host_network
+        self.ssh_port = ssh_port
         self.entry_point = entry_point
 
         if token is None or kube_master_ip is None:
@@ -113,12 +118,12 @@ class TrainingManager:
 
     def createDefinition(self):
 
-        self.statefulset_def = createStatefulSet(self.username, self.replicas, self.image)
-        self.job_def = createJob(self.username, self.image, self.replicas)
+        self.statefulset_def = createStatefulSet(self.username, self.replicas, self.image, is_host_network=self.is_host_network, ssh_port=self.ssh_port)
+        self.job_def = createJob(self.username, self.image, self.replicas, is_host_network=self.is_host_network, ssh_port=self.ssh_port)
         self.configmap_def = createConfigmap(self.username, self.replicas)
         self.secret_def = createSecret(self.username)
-        self.worker_service_def = createService(self.username, "master")
-        self.master_service_def = createService(self.username, "worker")
+        self.worker_service_def = createService(self.username, "master", ssh_port=self.ssh_port)
+        self.master_service_def = createService(self.username, "worker", ssh_port=self.ssh_port)
 
 
 
@@ -130,48 +135,81 @@ class TrainingManager:
 
             # configmap 생성
             api_response = self.core_v1_api_instance.create_namespaced_config_map(self.namespace, self.configmap_def)
-            pprint(api_response)
+            print("created config map")
 
             # Secret 생성
             api_response = self.core_v1_api_instance.create_namespaced_secret(self.namespace, self.secret_def)
-            pprint(api_response)
+            print("created secret")
 
             # StatefulSet 생성
             api_response = self.apps_v1_api_instance.create_namespaced_stateful_set(self.namespace, self.statefulset_def)
-            pprint(api_response)
+            print("created statefulset")
 
 
 
             # Job 생성
             api_response = self.batch_v1_api_instance.create_namespaced_job(self.namespace, self.job_def)
-            pprint(api_response)
+            print("created job")
 
             # Master Service 생성
             api_response = self.core_v1_api_instance.create_namespaced_service(self.namespace, self.master_service_def)
-            pprint(api_response)
+            print("created master service")
 
             # Worker Service 생성
             api_response = self.core_v1_api_instance.create_namespaced_service(self.namespace, self.worker_service_def)
-            pprint(api_response)
+            print("created worker service")
 
         except ApiException as e:
             print(e)
             raise e
 
     def deleteAllObject(self):
+
+        # Configmap을 제거합니다.
         try:
-            master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace=self.namespace, label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
-
             self.core_v1_api_instance.delete_namespaced_config_map(self.global_name, self.namespace)
-            self.core_v1_api_instance.delete_namespaced_secret(self.global_name, self.namespace)
-            self.apps_v1_api_instance.delete_namespaced_stateful_set(self.global_name, self.namespace)
-            self.core_v1_api_instance.delete_namespaced_service(self.global_name + "-worker", self.namespace)
-            self.core_v1_api_instance.delete_namespaced_service(self.global_name + "-master", self.namespace)
-            self.batch_v1_api_instance.delete_namespaced_job(self.global_name, self.namespace)
-
-            self.core_v1_api_instance.delete_namespaced_pod(name=master_pod_name, namespace=self.namespace)
         except ApiException as e:
-            pass
+            print(e)
+
+        # Secret을 제거합니다.
+        try:
+            self.core_v1_api_instance.delete_namespaced_secret(self.global_name, self.namespace)
+        except ApiException as e:
+            print(e)
+
+        # Job을 제거합니다.
+        try:
+            self.batch_v1_api_instance.delete_namespaced_job(self.global_name, self.namespace)
+        except ApiException as e:
+            print(e)
+
+        master_pod_name_list = self.core_v1_api_instance.list_namespaced_pod(namespace=self.namespace, label_selector='job-name={0}'.format(self.global_name))
+
+        # Job Pod를 제거합니다.
+        for master_pod in master_pod_name_list.items:
+            master_pod_name = master_pod.metadata.name
+            self.core_v1_api_instance.delete_namespaced_pod(name=master_pod_name, namespace=self.namespace)
+
+        # Statefulset을 제거합니다.
+        try:
+            self.apps_v1_api_instance.delete_namespaced_stateful_set(self.global_name, self.namespace)
+        except ApiException as e:
+            print(e)
+
+        # worker Service를 제거합니다.
+        try:
+            self.core_v1_api_instance.delete_namespaced_service(self.global_name + "-worker", self.namespace)
+        except ApiException as e:
+            print(e)
+
+        # Master Service를 제거합니다.
+        try:
+            self.core_v1_api_instance.delete_namespaced_service(self.global_name + "-master", self.namespace)
+        except ApiException as e:
+            print(e)
+
+
+
 
     def runTrain(self):
         # 모든 팟과 설정파일을 올리고
@@ -187,27 +225,35 @@ class TrainingManager:
             # Master 파드의 이름을 찾는다.
             master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace = self.namespace, label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
 
+            # Master 파드의 활성 여부를 3초 간격으로 10번 확인한다.
+            master_pod = None
             for i in range(0, 500):
                 sleep(3)
-                # Master 파드의 활성 여부를 3초 간격으로 10번 확인한다.
+
                 master_pod = self.core_v1_api_instance.read_namespaced_pod_status(name=master_pod_name, namespace=self.namespace)
-                print("Now Master Pod Status is " + master_pod.status.phase)
+
+                print("Waiting to Ready")
                 if master_pod.status.phase == "Running":
                     break
+            if master_pod.status.phase != "Running":
+                print("Pod 생성에 실패했습니다.")
 
-            master_pod_name = self.core_v1_api_instance.list_namespaced_pod(namespace=self.namespace,label_selector='job-name={}'.format(self.global_name)).items[0].metadata.name
+            master_pod_name = master_pod.metadata.name
 
             while True:
                 master_job_status = self.batch_v1_api_instance.read_namespaced_job_status(name=self.global_name, namespace=self.namespace)
-                print(master_job_status.status.failed, master_job_status.status.succeeded)
+                #print(master_job_status.status.failed, master_job_status.status.succeeded)
 
+
+                # Job이 끝났을 때
                 if master_job_status.status.active != 1:
-                    print("active is Not 1 - now Active is : {0}".format(master_job_status.status.active))
+                    if master_job_status.status.succeeded == 1:
+                        print("학습이 완료되었습니다.")
+                    if master_job_status.status.failed == 1:
+                        print("학습이 실패했습니다. 로그를 확인해주세요.")
                     break
 
-                # if master_job_status.status.failed != 0 or master_job_status.status.succeeded != 0:
-                #     break
-
+                # Master Pod의 로그를 출력한다.
                 stream = watch.Watch().stream(self.core_v1_api_instance.read_namespaced_pod_log, name=master_pod_name, namespace=self.namespace)
                 for event in stream:
                     print(event)
@@ -216,20 +262,7 @@ class TrainingManager:
         except Exception as e:
             print(e)
         finally:
-            self.deleteAll()
-        # 로그와 상태를 보고 끝났는지 확인
+            pass
+            #self.deleteAllObject()
 
-        #
 
-train_script = "tensorflow2_mnist.py"
-
-tm = TrainingManager("ywj", token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Inl3ai1zYS10b2tlbi1sbnh3bSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJ5d2otc2EiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI1YzRjMGYzZi1iOWYwLTExZTktYTNhYy1mYTE2M2UwOTllM2YiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDp5d2otc2EifQ.dxalsvH1kTLbD6FULnp3K6ukxebqpkxAM3myq2dYJIETKL1VGfGOPxVmY5jEjiXE_Lgb7uKHu7kckXDoVieeOljGxUPE1wGRNlicWHm2BKu57QQ8wQimaERJTrxHbxuh6d-U90lU28Yg4Y-7BmGunp2VJeBAZ2ajsNRMKw-u1l38glaOQlKFtNby94KzcaNA0jPsTXOFKKf7UMmJiUXhlJ1Pf-RhqHZ72jV4ZXr1OT9hpFJBEqUP9C4iC5k8prc36IyUr6-9mDwWlFV6VhPvtGt9DkoAF7DVYvj0MrZYrreVtFfZTuv5LMdgce6hjWI3e0wLkMnBL8o0K57Z1PC3UQ",
-                     replicas=2,
-                     kube_master_ip="203.254.143.253:8080",
-                     entry_point=train_script,
-                     image="horovod/horovod:0.16.4-tf1.14.0-torch1.1.0-mxnet1.4.1-py3.6"
-                     )
-
-#tm.sendDataToS3()
-tm.deleteAllObject()
-tm.runTrain()

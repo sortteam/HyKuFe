@@ -26,7 +26,7 @@ data:
 
      if [ -n "$SSHPORT" ]; then
         echo "Port $SSHPORT" > /root/.ssh/config
-        sed -i "s/^Port.*/Port $SSHPORT /g" /etc/ssh/sshd_config
+        sed -i "s/^#Port.*/Port $SSHPORT /g" /etc/ssh/sshd_config
      fi
      echo "StrictHostKeyChecking no" >> /root/.ssh/config
      /usr/sbin/sshd
@@ -107,7 +107,7 @@ data:
 
      if [ -n "$SSHPORT" ]; then
         echo "Port $SSHPORT" > /root/.ssh/config
-        sed -i "s/^Port.*/Port $SSHPORT /g" /etc/ssh/sshd_config
+        sed -i "s/^#Port.*/Port $SSHPORT /g" /etc/ssh/sshd_config
      fi
      echo "StrictHostKeyChecking no" >> /root/.ssh/config
 

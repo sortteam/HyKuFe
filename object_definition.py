@@ -112,7 +112,7 @@ N052MmVCMGRHZENPRjJJekpwUWZrTUZjd0ZuQkNQUEtoMVBQcU4gdWJ1bnR1QG5vZGUxCg=="
     return secret
 
 
-def createStatefulSet(username, replicas, image):
+def createStatefulSet(username, replicas, image, is_host_network=False, ssh_port="22"):
     statefulset_name = username + "-horovod"
 
     statefulset = client.V1StatefulSet()
@@ -142,7 +142,7 @@ def createStatefulSet(username, replicas, image):
     container.image = image
     container.image_pull_policy = "IfNotPresent"
     container.env = [
-        client.V1EnvVar(name="SSHPORT", value="22"),
+        client.V1EnvVar(name="SSHPORT", value=ssh_port),
         client.V1EnvVar(name="USESECRETS", value="true"),
         # TODO: 바꾸기
         client.V1EnvVar(name="ENTRY_POINT", value="train.py")
@@ -163,6 +163,12 @@ def createStatefulSet(username, replicas, image):
                                                period_seconds=2)
 
     pod_spec = client.V1PodSpec(containers=[container])
+
+    # Host Network가 설정되있다면
+    if is_host_network == True:
+        pod_spec.host_network = True
+        pod_spec.dns_policy = "ClusterFirstWithHostNet"
+
     pod_spec.volumes = [
         client.V1Volume(name=statefulset_name + "-cm",
                         config_map=client.V1ConfigMapVolumeSource(name=statefulset_name,
@@ -223,9 +229,13 @@ def createStatefulSet(username, replicas, image):
 
 
 
-def createJob(username, image, replicas, train_mode="cpu"):
+def createJob(username, image, replicas, train_mode="cpu", is_host_network = False, ssh_port="22"):
     job_name = username + "-horovod"
 
+    # TODO: port 번호 수정
+    new_ssh_port = int(ssh_port)
+    new_ssh_port += 1
+    new_ssh_port = "{}".format(new_ssh_port)
     job = client.V1Job()
     job.metadata = client.V1ObjectMeta(name=job_name,
                                        labels={
@@ -258,13 +268,13 @@ def createJob(username, image, replicas, train_mode="cpu"):
     container.image = image
     container.image_pull_policy = "IfNotPresent"
     container.env = [
-        client.V1EnvVar(name="SSHPORT", value="22"),
+        client.V1EnvVar(name="SSHPORT", value=ssh_port),
         client.V1EnvVar(name="USESECRETS", value="true"),
         # TODO: 바꾸기
         client.V1EnvVar(name="ENTRY_POINT", value="train.py")
     ]
     container.ports = [
-        client.V1ContainerPort(container_port=22)
+        client.V1ContainerPort(container_port=int(ssh_port))
     ]
     container.volume_mounts = [
         client.V1VolumeMount(name=job_name + "-cm", mount_path="/horovod/generated"),
@@ -316,7 +326,16 @@ def createJob(username, image, replicas, train_mode="cpu"):
         client.V1Volume(name=job_name + "-data",
                         empty_dir=client.V1EmptyDirVolumeSource())
     ]
+
+    # TODO: 지금은 Node Selector인데 삭제하고 어떻게 할지 생각하기
+    # pod_spec.node_selector = {
+    #     "node-role": "master"
+    # }
+
     pod_spec.containers = [container]
+    if is_host_network == True:
+        pod_spec.host_network = True
+        pod_spec.dns_policy = "ClusterFirstWithHostNet"
 
     # init container
     pod_spec.init_containers = [
@@ -324,7 +343,7 @@ def createJob(username, image, replicas, train_mode="cpu"):
                            image=image,
                            image_pull_policy="IfNotPresent",
                            env=[
-                               client.V1EnvVar(name="SSHPORT", value="22"),
+                               client.V1EnvVar(name="SSHPORT", value=ssh_port),
                                client.V1EnvVar(name="USESECRETS", value="true")
                            ],
                            command=[
@@ -362,7 +381,7 @@ def createJob(username, image, replicas, train_mode="cpu"):
     return job
 
 
-def createService(username, role):
+def createService(username, role, ssh_port="22"):
     service_name = username + "-horovod-" + role
     service = client.V1Service()
     service.metadata = client.V1ObjectMeta(name=service_name,
@@ -380,7 +399,7 @@ def createService(username, role):
         "user": username
     }
     service_spec.ports = [
-        client.V1ServicePort(name="ssh", port=22, target_port=22)
+        client.V1ServicePort(name="ssh", port=int(ssh_port), target_port=int(ssh_port))
     ]
     service.spec = service_spec
     return service
