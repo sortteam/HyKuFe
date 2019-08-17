@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
 import yaml
 from kubernetes import client
 
@@ -17,6 +20,7 @@ def createConfigmap(username, replicas):
                                              })
     # 외부 쉘파일을 불러온다.
     # 좋은 방법 있음?
+    os.chdir(os.path.dirname(__file__))
     with open("sh.yaml", 'r') as f:
         try:
             data = yaml.safe_load(f)
