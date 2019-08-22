@@ -15,5 +15,7 @@ assignees: ''
  - OS:
  - Version [e.g. 22]
 
+**commit hash**
+
 **Additional context**
 Add any other context about the problem here.
