@@ -5,6 +5,7 @@ import (
 
 	hykufev1alpha1 "hykufe-operator/pkg/apis/hykufe/v1alpha1"
 
+	volcanov1alpha1 "github.com/volcano-sh/volcano/pkg/apis/batch/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner HorovodJob
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// HorovodJob에 속해 있는 Volcano Job을 Watch
+	err = c.Watch(&source.Kind{Type: &volcanov1alpha1.Job{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &hykufev1alpha1.HorovodJob{},
 	})
@@ -151,4 +153,44 @@ func newPodForCR(cr *hykufev1alpha1.HorovodJob) *corev1.Pod {
 			},
 		},
 	}
+}
+
+func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
+	labels := map[string]string {
+		"app": cr.Name,
+	}
+	volcanojob := &volcanov1alpha1.Job {
+		ObjectMeta: metav1.ObjectMeta{
+			Name:		cr.Name + "-volcanojob",
+			Namespace:	cr.Namespace,
+			Labels:		labels,
+		},
+		Spec: volcanov1alpha1.JobSpec{
+			// SchedulerName:           "",
+			// MinAvailable:            0,
+			Tasks: []volcanov1alpha1.TaskSpec{
+				volcanov1alpha1.TaskSpec{
+					Name:     cr.Spec.Master.Name,
+					Replicas: 1,
+					Template: cr.Spec.Master.Template,
+					Policies: nil,
+				},
+				volcanov1alpha1.TaskSpec{
+					Name:     cr.Spec.Worker.Name,
+					Replicas: cr.Spec.Worker.Replicas,
+					Template: cr.Spec.Worker.Template,
+					Policies: nil,
+				},
+			},
+			//Volumes:                 nil,
+			//Policies:                nil,
+			//Plugins:                 nil,
+			//Queue:                   "",
+			MaxRetry:                cr.Spec.MaxRetry,
+			TTLSecondsAfterFinished: cr.Spec.TTLSecondsAfterFinished,
+			PriorityClassName:       cr.Spec.PriorityClassName,
+		},
+	}
+
+	return volcanojob
 }
