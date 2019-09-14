@@ -1,21 +1,20 @@
 ---
-name: 기능 추가
-about: 새로운 기능에 대한 추가 이슈입니다.
+name: Doing 추가
+about: Doing을 추가합니다.
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**제목**
-- 기능 설명
-- 상세한 아키텍쳐 설명
+**작업 목표**
+- Lorem ipsum dolor sit amet
 
-**개발 버전**
- - OS:
- - Version [e.g. 22]
+**Done Of Done(Subtask)**
+- (i.e)Test Case 작성
 
 **commit hash**
+- hashcode
 
 **Additional context**
 Add any other context about the problem here.
