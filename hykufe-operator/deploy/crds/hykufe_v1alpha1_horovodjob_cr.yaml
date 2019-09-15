@@ -1,0 +1,7 @@
+apiVersion: hykufe.com/v1alpha1
+kind: HorovodJob
+metadata:
+  name: example-horovodjob
+spec:
+  # Add fields here
+  size: 3
