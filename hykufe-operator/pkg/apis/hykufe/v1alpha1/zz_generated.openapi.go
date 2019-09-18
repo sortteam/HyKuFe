@@ -11,9 +11,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJob":       schema_pkg_apis_hykufe_v1alpha1_HorovodJob(ref),
-		"hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobSpec":   schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref),
-		"hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobStatus": schema_pkg_apis_hykufe_v1alpha1_HorovodJobStatus(ref),
+		"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJob":       schema_pkg_apis_hykufe_v1alpha1_HorovodJob(ref),
+		"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobSpec":   schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref),
+		"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobStatus": schema_pkg_apis_hykufe_v1alpha1_HorovodJobStatus(ref),
 	}
 }
 
@@ -44,19 +44,19 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJob(ref common.ReferenceCallback) co
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobSpec"),
+							Ref: ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobStatus"),
+							Ref: ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobSpec", "hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -73,7 +73,7 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("hykufe-operator/pkg/apis/hykufe/v1alpha1.VolumeSpec"),
+										Ref: ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.VolumeSpec"),
 									},
 								},
 							},
@@ -82,12 +82,12 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref common.ReferenceCallback
 					"master": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Tasks specifies the task specification of Job",
-							Ref:         ref("hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec"),
+							Ref:         ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec"),
 						},
 					},
 					"worker": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec"),
+							Ref: ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec"),
 						},
 					},
 					"maxRetry": {
@@ -115,7 +115,7 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec", "hykufe-operator/pkg/apis/hykufe/v1alpha1.VolumeSpec"},
+			"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.VolumeSpec"},
 	}
 }
 
@@ -128,7 +128,7 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobStatus(ref common.ReferenceCallba
 					"state": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Current state of Job.",
-							Ref:         ref("hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobState"),
+							Ref:         ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobState"),
 						},
 					},
 					"minAvailable": {
@@ -212,6 +212,6 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobStatus(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobState"},
+			"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.HorovodJobState"},
 	}
 }

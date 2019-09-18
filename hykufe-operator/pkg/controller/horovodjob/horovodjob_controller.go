@@ -2,11 +2,9 @@ package horovodjob
 
 import (
 	"context"
-
 	hykufev1alpha1 "hykufe-operator/pkg/apis/hykufe/v1alpha1"
 
 	volcanov1alpha1 "github.com/volcano-sh/volcano/pkg/apis/batch/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -111,11 +109,11 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
+	// Check if this HorovodJob already exists
+	found := &hykufev1alpha1.HorovodJob{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: volcanoJob.Name, Namespace: volcanoJob.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", volcanoJob.Namespace, "Pod.Name", volcanoJob.Name)
+		reqLogger.Info("Creating a new HorovodJob", "HorovodJob.Namespace", volcanoJob.Namespace, "HorovodJob.Name", volcanoJob.Name)
 		err = r.client.Create(context.TODO(), volcanoJob)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -133,27 +131,27 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *hykufev1alpha1.HorovodJob) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
-	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
-}
+//func newPodForCR(cr *hykufev1alpha1.HorovodJob) *corev1.Pod {
+//	labels := map[string]string{
+//		"app": cr.Name,
+//	}
+//	return &corev1.Pod{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      cr.Name + "-pod",
+//			Namespace: cr.Namespace,
+//			Labels:    labels,
+//		},
+//		Spec: corev1.PodSpec{
+//			Containers: []corev1.Container{
+//				{
+//					Name:    "busybox",
+//					Image:   "busybox",
+//					Command: []string{"sleep", "3600"},
+//				},
+//			},
+//		},
+//	}
+//}
 
 func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 	labels := map[string]string {
@@ -167,7 +165,7 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 		},
 		Spec: volcanov1alpha1.JobSpec{
 			// SchedulerName:           "",
-			// MinAvailable:            0,
+			MinAvailable:            cr.Spec.Worker.Replicas + 1,
 			Tasks: []volcanov1alpha1.TaskSpec{
 				volcanov1alpha1.TaskSpec{
 					Name:     cr.Spec.Master.Name,
@@ -183,14 +181,19 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 				},
 			},
 			//Volumes:                 nil,
-			//Policies:                nil,
-			//Plugins:                 nil,
+			//Policies:                {
+
+			Plugins:                 map[string][]string{
+				"ssh": []string{},
+				"svc": []string{},
+			},
 			//Queue:                   "",
 			MaxRetry:                cr.Spec.MaxRetry,
 			TTLSecondsAfterFinished: cr.Spec.TTLSecondsAfterFinished,
 			PriorityClassName:       cr.Spec.PriorityClassName,
 		},
 	}
+
 
 	return volcanojob
 }

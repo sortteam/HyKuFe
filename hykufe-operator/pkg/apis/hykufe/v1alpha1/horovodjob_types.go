@@ -179,7 +179,7 @@ type HorovodJobStatus struct {
 type HorovodJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HorovodJob `json:"items"`
+	Items           []HorovodJob `json:"items"` 
 }
 
 func init() {
