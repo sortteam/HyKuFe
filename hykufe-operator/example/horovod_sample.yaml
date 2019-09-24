@@ -26,7 +26,7 @@ spec:
               - |
                 WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
                 mkdir -p /var/run/sshd; /usr/sbin/sshd;
-                mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 3 python tensorflow_mnist_lm.py;
+                mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 3 python tensorflow_mnist_lm.py 1> /result/log/mpi_log 2>&1;
             image: volcanosh/horovod-tf-mnist:0.5
             name: master
             ports:

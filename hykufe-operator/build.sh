@@ -1,5 +1,5 @@
 #!/bin/bash
-
+[ "$#" -eq 1 ] || { echo 'version is required e.g. v0.0.1'; exit 1; }
 version=$1
 
 operator-sdk generate k8s

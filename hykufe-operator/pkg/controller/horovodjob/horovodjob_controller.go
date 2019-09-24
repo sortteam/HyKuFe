@@ -2,13 +2,14 @@ package horovodjob
 
 import (
 	"context"
-	hykufev1alpha1 "hykufe-operator/pkg/apis/hykufe/v1alpha1"
-
 	volcanov1alpha1 "github.com/volcano-sh/volcano/pkg/apis/batch/v1alpha1"
+	hykufev1alpha1 "hykufe-operator/pkg/apis/hykufe/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -194,6 +195,59 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 		},
 	}
 
+	// add Sidecar Container
+	//volcanojob.Spec.Tasks[0].Template.Spec.Container
+	masterJobSpec := &volcanojob.Spec.Tasks[0].Template.Spec
+
+	// Sync Process namespace with all containers
+	t := true
+	masterJobSpec.ShareProcessNamespace = &t
+
+	// Add EmptyDir Volume for saving model, log, etc...
+	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
+		Name:         "result-data-volume",
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{
+			},
+		},
+	})
+
+	// Add Volume to main container
+	masterJobSpec.Containers[0].VolumeMounts = append(masterJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+			Name:      "result-data-volume",
+			ReadOnly:  false,
+			MountPath: "/result",
+			//MountPropagation: nil,
+		},
+	)
+
+	// Add Sidecar Container
+	masterJobSpec.Containers = append(masterJobSpec.Containers, v1.Container{
+		Name:                     "sidecar-container",
+		Image:                    "alpine",
+		Command:                  []string{ "/bin/sh" },
+		Args:                     nil,
+		WorkingDir:               "/",
+		Ports:                    nil,
+		EnvFrom:                  nil,
+		Env:                      nil,
+		Resources:                v1.ResourceRequirements{},
+		VolumeMounts:             []v1.VolumeMount{
+			{
+				Name:             "result-data-volume",
+				ReadOnly:         false,
+				MountPath:        "/result",
+			},
+		},
+		ImagePullPolicy:          "",
+		SecurityContext:          nil,
+	})
+
+	jsonByte, err := json.Marshal(volcanojob)
+	if err != nil {
+
+	}
+	log.Info(string(jsonByte))
 
 	return volcanojob
 }
