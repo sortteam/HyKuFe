@@ -105,6 +105,8 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 	// Define a new Pod object
 	volcanoJob := newVolcanoJobForCR(instance)
 
+
+
 	// Set HorovodJob instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, volcanoJob, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -199,9 +201,11 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 	//volcanojob.Spec.Tasks[0].Template.Spec.Container
 	masterJobSpec := &volcanojob.Spec.Tasks[0].Template.Spec
 
+
 	// Sync Process namespace with all containers
 	t := true
 	masterJobSpec.ShareProcessNamespace = &t
+
 
 	// Add EmptyDir Volume for saving model, log, etc...
 	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
@@ -210,6 +214,27 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 			EmptyDir: &v1.EmptyDirVolumeSource{
 			},
 		},
+	})
+
+	// Add Configmap Volume
+	mode := int32(365)
+	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
+		Name:         "horovod-cm",
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name:"horovod-cm",
+				},
+				Items: []v1.KeyToPath{
+					{
+						Key:  "sidecar.run",
+						Path: "sidecar.sh",
+						Mode: &mode,
+					},
+				},
+			},
+		},
+
 	})
 
 	// Add Volume to main container
@@ -221,11 +246,11 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 		},
 	)
 
-	// Add Sidecar Container
+	// Add Sidecar Container and attach volumes
 	masterJobSpec.Containers = append(masterJobSpec.Containers, v1.Container{
 		Name:                     "sidecar-container",
 		Image:                    "alpine",
-		Command:                  []string{ "/bin/sh" },
+		Command:                  []string{ "/bin/sh", "/exec/sidecar.sh" },
 		Args:                     nil,
 		WorkingDir:               "/",
 		Ports:                    nil,
@@ -237,6 +262,11 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 				Name:             "result-data-volume",
 				ReadOnly:         false,
 				MountPath:        "/result",
+			},
+			{
+				Name:             "horovod-cm",
+				ReadOnly:         false,
+				MountPath:        "/exec",
 			},
 		},
 		ImagePullPolicy:          "",

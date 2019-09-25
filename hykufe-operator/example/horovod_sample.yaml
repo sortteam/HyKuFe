@@ -10,7 +10,7 @@ spec:
 #  plugins:
 #    ssh: []
 #    svc: []
-#  # 如果有pod被 杀死，重启整个作业
+
   master:
     replicas: 1
     name: master
