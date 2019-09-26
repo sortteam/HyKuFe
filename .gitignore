@@ -183,3 +183,4 @@ tags
 # GoLand files
 .idea
 vendor/
+hykufe-operator/build/_output/bin/hykufe-operator
