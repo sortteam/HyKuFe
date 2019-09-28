@@ -1,0 +1,46 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-server
+  labels:
+    cluster-type: private
+spec:
+  selector:
+    matchLabels:
+      cluster-type: private
+  template:
+    metadata:
+      labels:
+        cluster-type: private
+    spec:
+      containers:
+        - name: nfs-server
+          ports:
+            - containerPort: 2049
+          image: erichough/nfs-server
+          volumeMounts:
+            - mountPath: /volume
+              name: nfs-server-volume
+          env:
+            - name: NFS_EXPORT_0
+              value: "/volume * (rw,no_subtree_cehck)"
+          securityContext:
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - SYS_MODULE
+      volumes:
+        - name: nfs-server-volume
+          persistentVolumeClaim:
+            claimName: nfs-server-pvc
+        - name: kernel-module
+          hostPath:
+            path: /lib/modules
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "master"
+          effect: "NoSchedule"
+      nodeSelector:
+        node-role: master
+

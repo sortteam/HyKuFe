@@ -1,0 +1,15 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  labels:
+    cluster-type: private
+  name: nfs-server-pv
+spec:
+  # 임시로 hostpath 연결
+  hostPath:
+    path: /home/ubuntu/nfs-pv
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem

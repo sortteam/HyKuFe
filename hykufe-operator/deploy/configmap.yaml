@@ -1,7 +1,7 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: horovod-job-config
+  name: horovod-cm
 data:
   sidecar.run: |
     #!/bin/sh
