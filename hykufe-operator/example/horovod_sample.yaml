@@ -26,6 +26,7 @@ spec:
               - |
                 WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
                 mkdir -p /var/run/sshd; /usr/sbin/sshd;
+                mkdir -p /result/log;
                 mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 3 python tensorflow_mnist_lm.py 1> /result/log/mpi_log 2>&1;
             image: volcanosh/horovod-tf-mnist:0.5
             name: master
@@ -42,30 +43,30 @@ spec:
         restartPolicy: OnFailure
         imagePullSecrets:
           - name: default-secret
-    worker:
-      replicas: 2
-      name: worker
-      template:
-        spec:
-          containers:
-            - command:
-                - /bin/sh
-                - -c
-                - |
-                  mkdir -p /var/run/sshd; /usr/sbin/sshd -D;
-              image: volcanosh/horovod-tf-mnist:0.5
-              name: worker
-              ports:
-                - containerPort: 22
-                  name: job-port
-              resources:
-                requests:
-                  cpu: "1000m"
-                  memory: "1024Mi"
-                limits:
-                  cpu: "1000m"
-                  memory: "1024Mi"
-          restartPolicy: OnFailure
-          imagePullSecrets:
-            - name: default-secret
+  worker:
+    replicas: 2
+    name: worker
+    template:
+      spec:
+        containers:
+          - command:
+              - /bin/sh
+              - -c
+              - |
+                mkdir -p /var/run/sshd; /usr/sbin/sshd -D;
+            image: volcanosh/horovod-tf-mnist:0.5
+            name: worker
+            ports:
+              - containerPort: 22
+                name: job-port
+            resources:
+              requests:
+                cpu: "1000m"
+                memory: "1024Mi"
+              limits:
+                cpu: "1000m"
+                memory: "1024Mi"
+        restartPolicy: OnFailure
+        imagePullSecrets:
+          - name: default-secret
 ---

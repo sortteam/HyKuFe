@@ -19,6 +19,8 @@ type HorovodJobSpec struct {
 	// VolumeSpec
 	Volumes []VolumeSpec `json:"volumes,omitempty"`
 
+	DataSources []DataSourceSpec `json:"dataSources,omitempty"`
+
 	// Tasks specifies the task specification of Job
 	Master TaskSpec `json:"master,omitempty"`
 
@@ -42,6 +44,8 @@ type HorovodJobSpec struct {
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,10,opt,name=priorityClassName"`
 }
+
+
 
 // TaskSpec specifies the task specification of Job
 type TaskSpec struct {

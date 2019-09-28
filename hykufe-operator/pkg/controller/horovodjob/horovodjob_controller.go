@@ -113,10 +113,10 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Check if this HorovodJob already exists
-	found := &hykufev1alpha1.HorovodJob{}
+	found := &volcanov1alpha1.Job{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: volcanoJob.Name, Namespace: volcanoJob.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new HorovodJob", "HorovodJob.Namespace", volcanoJob.Namespace, "HorovodJob.Name", volcanoJob.Name)
+		reqLogger.Info("Creating a new VolcanoJob", "VolcanoJob.Namespace", volcanoJob.Namespace, "VolcanoJob.Name", volcanoJob.Name)
 		err = r.client.Create(context.TODO(), volcanoJob)
 		if err != nil {
 			return reconcile.Result{}, err
