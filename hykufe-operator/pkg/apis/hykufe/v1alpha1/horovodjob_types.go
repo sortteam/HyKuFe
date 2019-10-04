@@ -21,6 +21,9 @@ type HorovodJobSpec struct {
 
 	DataSources []DataSourceSpec `json:"dataSources,omitempty"`
 
+	// Data share mode
+	DataShareMode DataShareSpec `json:"dataShareMode,omitempty"`
+
 	// Tasks specifies the task specification of Job
 	Master TaskSpec `json:"master,omitempty"`
 
@@ -44,7 +47,6 @@ type HorovodJobSpec struct {
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,10,opt,name=priorityClassName"`
 }
-
 
 
 // TaskSpec specifies the task specification of Job

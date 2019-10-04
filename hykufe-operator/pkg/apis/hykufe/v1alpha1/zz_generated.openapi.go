@@ -91,6 +91,12 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref common.ReferenceCallback
 							},
 						},
 					},
+					"dataShareMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Data share mode",
+							Ref:         ref("HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.DataShareSpec"),
+						},
+					},
 					"master": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Tasks specifies the task specification of Job",
@@ -127,7 +133,7 @@ func schema_pkg_apis_hykufe_v1alpha1_HorovodJobSpec(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.DataSourceSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.VolumeSpec"},
+			"HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.DataShareSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.DataSourceSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.TaskSpec", "HyKuFe/hykufe-operator/pkg/apis/hykufe/v1alpha1.VolumeSpec"},
 	}
 }
 

@@ -29,6 +29,20 @@ spec:
           type: object
         spec:
           properties:
+            dataShareMode:
+              description: Data share mode
+              properties:
+                nfsMode:
+                  description: NFS 모드, 데이터가 NFS에 복사되고 각 파드가 NFS를 PV로 마운트하여 사용하게 된다.
+                  properties:
+                    ipAddress:
+                      type: string
+                    path:
+                      type: string
+                  required:
+                  - ipAddress
+                  type: object
+              type: object
             dataSources:
               items:
                 properties:

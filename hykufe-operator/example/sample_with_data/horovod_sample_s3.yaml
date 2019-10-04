@@ -10,6 +10,10 @@ spec:
   #  plugins:
   #    ssh: []
   #    svc: []
+  dataShareMode:
+    nfsMode:
+      ipAddress: ???
+      path: ???
   dataSources:
     - name: "s3-train"
       s3Source:

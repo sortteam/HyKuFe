@@ -22,10 +22,21 @@ data:
 
     while :
     do
+      # 계속 mpi process를 감시한다. 만약 죽어있다면 파일로 저장된 exit code를 참조한다.
+      horovod_pid=$(ps -A | grep mpiexec | awk '$4 !~ /grep/ {print $1}')
+      if [ "$horovod_pid" != "" ]
+      then
+        echo "found MPI process! pid is : $horovod_pid"
+        sleep 5
+        continue
+      fi
+
       if [ -f "/result/exit_code" ]
       then
         echo "found exit code from MPI Process"
         break
+      else # 만약 파일이 없다면 제대로 종료된게 아니므로 종료한다.
+        exit 1
       fi
       sleep 1
     done

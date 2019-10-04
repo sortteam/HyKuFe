@@ -10,7 +10,10 @@ spec:
 #  plugins:
 #    ssh: []
 #    svc: []
-
+  dataShareMode:
+    nfsMode:
+      ipAddress: ???
+      path: ???
   master:
     replicas: 1
     name: master

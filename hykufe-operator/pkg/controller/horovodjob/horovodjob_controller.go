@@ -272,45 +272,47 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, er
 	})
 
 	// Add NFS Volume For data save
-	// TODO : private - NFS,
-	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
-		Name:         "data-volume",
-		VolumeSource: v1.VolumeSource{
-			NFS: &v1.NFSVolumeSource{
-				// FIXME : 임시로 지정
-				Server:   "10.233.120.11",
-				Path:     "/volume",
-				ReadOnly: false,
+	if cr.Spec.DataShareMode.NFSMode != nil {
+		masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
+			Name:         "data-volume",
+			VolumeSource: v1.VolumeSource{
+				NFS: &v1.NFSVolumeSource{
+					// FIXME : 임시로 지정
+					Server:   cr.Spec.DataShareMode.NFSMode.IPAddress,
+					Path:     cr.Spec.DataShareMode.NFSMode.Path,
+					ReadOnly: false,
+				},
 			},
-		},
-	})
+		})
 
-	// Mount data volume to master
-	masterJobSpec.Containers[0].VolumeMounts = append(masterJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
-		Name:             "data-volume",
-		ReadOnly:         true,
-		MountPath:        "/data",
-	})
+		// Mount data volume to master
+		masterJobSpec.Containers[0].VolumeMounts = append(masterJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+			Name:             "data-volume",
+			ReadOnly:         true,
+			MountPath:        "/data",
+		})
 
-	// Add NFS Volume For data save
-	workerJobSpec.Volumes = append(workerJobSpec.Volumes, v1.Volume{
-		Name:         "data-volume",
-		VolumeSource: v1.VolumeSource{
+		// Add NFS Volume For data save
+		workerJobSpec.Volumes = append(workerJobSpec.Volumes, v1.Volume{
+			Name:         "data-volume",
+			VolumeSource: v1.VolumeSource{
 
-			NFS: &v1.NFSVolumeSource{
-				Server:   "10.233.120.11",
-				Path:     "/volume",
-				ReadOnly: true,
+				NFS: &v1.NFSVolumeSource{
+					Server:   cr.Spec.DataShareMode.NFSMode.IPAddress,
+					Path:     cr.Spec.DataShareMode.NFSMode.Path,
+					ReadOnly: true,
+				},
 			},
-		},
-	})
+		})
 
-	//Mount data volume to worker
-	workerJobSpec.Containers[0].VolumeMounts = append(workerJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
-		Name:             "data-volume",
-		ReadOnly:         true,
-		MountPath:        "/data",
-	})
+		//Mount data volume to worker
+		workerJobSpec.Containers[0].VolumeMounts = append(workerJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+			Name:             "data-volume",
+			ReadOnly:         true,
+			MountPath:        "/data",
+		})
+
+	}
 
 
 	if len(masterJobSpec.Containers) == 0 {
