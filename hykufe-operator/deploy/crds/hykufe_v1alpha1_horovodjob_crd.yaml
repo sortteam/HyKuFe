@@ -29,6 +29,39 @@ spec:
           type: object
         spec:
           properties:
+            dataSources:
+              items:
+                properties:
+                  name:
+                    type: string
+                  s3Source:
+                    properties:
+                      accessKeyId:
+                        description: Access Key
+                        type: string
+                      bucket:
+                        description: Bucket Name
+                        type: string
+                      directory:
+                        description: Directory Name
+                        type: string
+                      region:
+                        description: 사용할 S3의 Region을 입력합니다.
+                        type: string
+                      secretAccessKey:
+                        description: Secret Access key
+                        type: string
+                    required:
+                    - accessKeyId
+                    - secretAccessKey
+                    - region
+                    - bucket
+                    - directory
+                    type: object
+                required:
+                - name
+                type: object
+              type: array
             master:
               description: Tasks specifies the task specification of Job
               properties:

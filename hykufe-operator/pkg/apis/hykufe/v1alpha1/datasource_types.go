@@ -1,11 +1,8 @@
 package v1alpha1
 
-import v1 "k8s.io/api/core/v1"
-
 type DataSourceSpec struct {
 	Name string `json:"name"`
-	S3Source *S3Spec `json:"s3Source"`
-	v1.CephFSVolumeSource
+	S3Source *S3Spec `json:"s3Source,omitempty"`
 }
 
 type S3Spec struct {
@@ -18,9 +15,11 @@ type S3Spec struct {
 	// 사용할 S3의 Region을 입력합니다.
 	Region string `json:"region"`
 
+	// Bucket Name
 	Bucket string `json:"bucket"`
 
-
+	// Directory Name
+	Directory string `json:"directory"`
 }
 
 

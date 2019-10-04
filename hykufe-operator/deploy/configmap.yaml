@@ -11,10 +11,10 @@ data:
     # find mpi process pid
     while :
     do
-      mpi_pid=$(ps -A | grep mpiexec | awk '{print $1}')
-      if [ "$mpi_pid" != "" ]
+      horovod_pid=$(ps -A | grep mpiexec | awk '$4 !~ /grep/ {print $1}')
+      if [ "$horovod_pid" != "" ]
       then
-        echo "found MPI process! pid is : $mpi_pid"
+        echo "found MPI process! pid is : $horovod_pid"
         break
       fi
       sleep 1
@@ -22,9 +22,37 @@ data:
 
     while :
     do
-      echo "do something"
-      sleep 10
+      if [ -f "/result/exit_code" ]
+      then
+        echo "found exit code from MPI Process"
+        break
+      fi
+      sleep 1
     done
+
+    exit_code=$(</result/exit_code)
+    if [ "$exit_code" == "0" ]
+    then
+      # if exit code is 0 is train is normally finished
+      # send S3
+      if [ ! -z "$S3_URL" ]
+      then
+        echo "Upload Log, Model to S3!"
+        aws s3 cp /result/log s3://${AWS_S3_BUCKET}/horovod-result/${JOB_NAME}/log
+        aws s3 cp /result/model s3://${AWS_S3_BUCKET}/horovod-result/${JOB_NAME}/model
+      fi
+    else # abnormally finished
+      if [ ! -z "$S3_URL" ]
+      then
+        echo "horovod job is abnormally finished"
+        if [ -d "/result/checkpoint" ]
+        then
+          echo "Upload Checkpoint to S3!"
+          aws s3 cp /result/checkpoint s3://${AWS_S3_BUCKET}/horovod-result/${JOB_NAME}/checkpoint
+        fi
+      fi
+      exit 1;
+    fi
 
 
 

@@ -2,6 +2,7 @@ package horovodjob
 
 import (
 	"context"
+	"fmt"
 	volcanov1alpha1 "github.com/volcano-sh/volcano/pkg/apis/batch/v1alpha1"
 	hykufev1alpha1 "hykufe-operator/pkg/apis/hykufe/v1alpha1"
 	v1 "k8s.io/api/core/v1"
@@ -101,10 +102,21 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+	jsonByte, err := json.Marshal(instance)
+	if err != nil {
 
+	}
+	reqLogger.Info("CR definition", "horovodjob", string(jsonByte))
 	// Define a new Pod object
-	volcanoJob := newVolcanoJobForCR(instance)
+	volcanoJob, err := newVolcanoJobForCR(instance)
+	if err != nil {
+		updateErr := r.client.Status().Update(context.TODO(), instance)
+		if updateErr != nil {
+			reqLogger.Error(updateErr, "fail to update horovodjob instance")
+		}
 
+		return reconcile.Result{}, err
+	}
 
 
 	// Set HorovodJob instance as the owner and controller
@@ -156,7 +168,7 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 //	}
 //}
 
-func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
+func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, error) {
 	labels := map[string]string {
 		"app": cr.Name,
 	}
@@ -197,15 +209,29 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 		},
 	}
 
+
 	// add Sidecar Container
 	//volcanojob.Spec.Tasks[0].Template.Spec.Container
 	masterJobSpec := &volcanojob.Spec.Tasks[0].Template.Spec
+	workerJobSpec := &volcanojob.Spec.Tasks[1].Template.Spec
 
 
 	// Sync Process namespace with all containers
 	t := true
 	masterJobSpec.ShareProcessNamespace = &t
 
+	//masterJobSpec.Containers[0].LivenessProbe.Exec.Command = []string{
+	//	"/bin/sh",
+	//	"-c",
+	//	"horovod_pid=$(ps -A | grep mpiexec | awk '/!(grep)/ { print $1 }')",
+	//	"if [ \"$horovod_pid\" != \"\" ]\"",
+	//	"then",
+	//	"exit 0",
+	//	"else",
+	//	"exit 1",
+	//	"fi",
+	//}
+	//masterJobSpec.Containers[0].LivenessProbe.InitialDelaySeconds = 20;
 
 	// Add EmptyDir Volume for saving model, log, etc...
 	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
@@ -216,7 +242,16 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 		},
 	})
 
-	// Add Configmap Volume
+	// Mount Volume to main container
+	masterJobSpec.Containers[0].VolumeMounts = append(masterJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+		Name:      "result-data-volume",
+		ReadOnly:  false,
+		MountPath: "/result",
+		//MountPropagation: nil,
+	},
+	)
+
+	// Add Configmap Volume for sidecar container
 	mode := int32(365)
 	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
 		Name:         "horovod-cm",
@@ -234,22 +269,58 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 				},
 			},
 		},
-
 	})
 
-	// Add Volume to main container
-	masterJobSpec.Containers[0].VolumeMounts = append(masterJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
-			Name:      "result-data-volume",
-			ReadOnly:  false,
-			MountPath: "/result",
-			//MountPropagation: nil,
+	// Add NFS Volume For data save
+	// TODO : private - NFS,
+	masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
+		Name:         "data-volume",
+		VolumeSource: v1.VolumeSource{
+			NFS: &v1.NFSVolumeSource{
+				// FIXME : 임시로 지정
+				Server:   "10.233.120.11",
+				Path:     "/volume",
+				ReadOnly: false,
+			},
 		},
-	)
+	})
+
+	// Mount data volume to master
+	masterJobSpec.Containers[0].VolumeMounts = append(masterJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+		Name:             "data-volume",
+		ReadOnly:         true,
+		MountPath:        "/data",
+	})
+
+	// Add NFS Volume For data save
+	workerJobSpec.Volumes = append(workerJobSpec.Volumes, v1.Volume{
+		Name:         "data-volume",
+		VolumeSource: v1.VolumeSource{
+
+			NFS: &v1.NFSVolumeSource{
+				Server:   "10.233.120.11",
+				Path:     "/volume",
+				ReadOnly: true,
+			},
+		},
+	})
+
+	//Mount data volume to worker
+	workerJobSpec.Containers[0].VolumeMounts = append(workerJobSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+		Name:             "data-volume",
+		ReadOnly:         true,
+		MountPath:        "/data",
+	})
+
+
+	if len(masterJobSpec.Containers) == 0 {
+		return nil, fmt.Errorf("must exist master pods spec")
+	}
 
 	// Add Sidecar Container and attach volumes
 	masterJobSpec.Containers = append(masterJobSpec.Containers, v1.Container{
 		Name:                     "sidecar-container",
-		Image:                    "alpine",
+		Image:                    "banst/awscli",
 		Command:                  []string{ "/bin/sh", "/exec/sidecar.sh" },
 		Args:                     nil,
 		WorkingDir:               "/",
@@ -273,11 +344,91 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) *volcanov1alpha1.Job {
 		SecurityContext:          nil,
 	})
 
+	// add initContainer for data sync from data source
+	volcanojob.Spec.Tasks[0].Template.Spec.InitContainers = []v1.Container{}
+
+	for i, dataSource := range cr.Spec.DataSources {
+		// S3 데이터 처리용 initContainer 추가
+		if dataSource.S3Source != nil {
+			volcanojob.Spec.Tasks[0].Template.Spec.InitContainers = append(volcanojob.Spec.Tasks[0].Template.Spec.InitContainers, v1.Container{
+				Name:                     fmt.Sprintf("initcontainer-%d", i),
+				Image:                    "banst/awscli",
+				Command:                  []string{
+					"/bin/sh",
+				},
+				Args:                     []string{
+					"-c",
+					"aws s3 cp --recursive s3://${AWS_S3_BUCKET}/${AWS_S3_DIRECTORY} /data/${DATA_SOURCE_NAME}",
+				},
+				WorkingDir:               "/data",
+				Ports:                    nil,
+				Env:                      []v1.EnvVar{
+					{
+						Name:	"AWS_ACCESS_KEY_ID",
+						Value:	dataSource.S3Source.AccessKeyId,
+					},
+					{
+						Name:	"AWS_SECRET_ACCESS_KEY",
+						Value: 	dataSource.S3Source.SecretAccessKey,
+					},
+					{
+						Name:	"AWS_DEFAULT_REGION",
+						Value:	dataSource.S3Source.Region,
+					},
+					{
+						Name:	"AWS_S3_BUCKET",
+						Value: dataSource.S3Source.Bucket,
+					},
+					{
+						Name: "AWS_S3_DIRECTORY",
+						Value: dataSource.S3Source.Directory,
+					},
+					{
+						Name: "DATA_SOURCE_NAME",
+						Value: dataSource.Name,
+					},
+				},
+				VolumeMounts:             []v1.VolumeMount{
+					{
+						Name:             "data-volume",
+						ReadOnly:         false,
+						MountPath:        "/data",
+					},
+				},
+			})
+		}
+	}
+
 	jsonByte, err := json.Marshal(volcanojob)
 	if err != nil {
 
 	}
 	log.Info(string(jsonByte))
 
-	return volcanojob
+	return volcanojob, nil
 }
+
+func validateHorovodJobCR(cr *hykufev1alpha1.HorovodJob) error {
+
+	// Validate DataSource
+	for _, dataSource := range cr.Spec.DataSources {
+		if dataSource.S3Source.AccessKeyId == "" {
+			return fmt.Errorf("Access Key ID must entered")
+		}
+		if dataSource.S3Source.SecretAccessKey == "" {
+			return fmt.Errorf("Secret Access Key must entered")
+		}
+		if dataSource.S3Source.Region == "" {
+			return fmt.Errorf("Region must entered")
+		}
+		if dataSource.S3Source.Bucket == "" {
+			return fmt.Errorf("Bucket must entered")
+		}
+		if dataSource.S3Source.Directory == "" {
+			return fmt.Errorf("DirectoryName must entered")
+		}
+	}
+
+	return nil
+}
+
