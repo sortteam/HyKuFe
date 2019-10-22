@@ -32,9 +32,10 @@ spec:
       spec:
         containers:
           - command:
-              - /bin/sh
+              - /bin/bash
               - -c
               - |
+                set -o pipefail;
                 WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
                 mkdir -p /var/run/sshd; /usr/sbin/sshd;
                 mkdir -p /result/log;

@@ -27,6 +27,7 @@ spec:
               - /bin/sh
               - -c
               - |
+                set -o pipefail;
                 WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
                 mkdir -p /var/run/sshd; /usr/sbin/sshd;
                 mkdir -p /result/log;
@@ -45,7 +46,7 @@ spec:
               limits:
                 cpu: "500m"
                 memory: "1024Mi"
-        restartPolicy: OnFailure
+        restartPolicy: Never
         imagePullSecrets:
           - name: default-secret
   worker:

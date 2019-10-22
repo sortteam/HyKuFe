@@ -108,7 +108,7 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 	reqLogger.Info("CR definition", "horovodjob", string(jsonByte))
 	// Define a new Pod object
-	volcanoJob, err := newVolcanoJobForCR(instance)
+	volcanoJob, err := r.newVolcanoJobForCR(instance)
 	if err != nil {
 		updateErr := r.client.Status().Update(context.TODO(), instance)
 		if updateErr != nil {
@@ -168,7 +168,7 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 //	}
 //}
 
-func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, error) {
+func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, error) {
 	labels := map[string]string {
 		"app": cr.Name,
 	}
@@ -342,6 +342,7 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, er
 				MountPath:        "/exec",
 			},
 		},
+
 		ImagePullPolicy:          "",
 		SecurityContext:          nil,
 	})
@@ -350,6 +351,48 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, er
 	volcanojob.Spec.Tasks[0].Template.Spec.InitContainers = []v1.Container{}
 
 	for i, dataSource := range cr.Spec.DataSources {
+
+		// FIXME : 임시 코드
+		// Sidecar 컨테이너를 찾는다.
+		for _, container := range masterJobSpec.Containers {
+			if container.Name == "sidecar-container" {
+				container.Env =  []v1.EnvVar{
+					{
+						Name:	"SAVE_TO_S3",
+						Value:	"true",
+					},
+					{
+						Name:	"JOB_NAME",
+						Value:	dataSource.Name,
+					},
+					{
+						Name:	"AWS_ACCESS_KEY_ID",
+						Value:	dataSource.S3Source.AccessKeyId,
+					},
+					{
+						Name:	"AWS_SECRET_ACCESS_KEY",
+						Value: 	dataSource.S3Source.SecretAccessKey,
+					},
+					{
+						Name:	"AWS_DEFAULT_REGION",
+						Value:	dataSource.S3Source.Region,
+					},
+					{
+						Name:	"AWS_S3_BUCKET",
+						Value: dataSource.S3Source.Bucket,
+					},
+					{
+						Name: "AWS_S3_DIRECTORY",
+						Value: dataSource.S3Source.Directory,
+					},
+					{
+						Name: "DATA_SOURCE_NAME",
+						Value: dataSource.Name,
+					},
+				}
+			}
+		}
+
 		// S3 데이터 처리용 initContainer 추가
 		if dataSource.S3Source != nil {
 			volcanojob.Spec.Tasks[0].Template.Spec.InitContainers = append(volcanojob.Spec.Tasks[0].Template.Spec.InitContainers, v1.Container{
@@ -407,6 +450,8 @@ func newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, er
 	}
 	log.Info(string(jsonByte))
 
+	// Set HorovodJob instance as the owner of the VolcanoJob
+	controllerutil.SetControllerReference(cr, volcanojob, r.scheme);
 	return volcanojob, nil
 }
 

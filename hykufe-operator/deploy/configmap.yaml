@@ -31,6 +31,8 @@ data:
         continue
       fi
 
+      sleep 5
+
       if [ -f "/result/exit_code" ]
       then
         echo "found exit code from MPI Process"
@@ -46,14 +48,14 @@ data:
     then
       # if exit code is 0 is train is normally finished
       # send S3
-      if [ ! -z "$S3_URL" ]
+      if [ ! -z "$SAVE_TO_S3" ]
       then
         echo "Upload Log, Model to S3!"
         aws s3 cp /result/log s3://${AWS_S3_BUCKET}/horovod-result/${JOB_NAME}/log
         aws s3 cp /result/model s3://${AWS_S3_BUCKET}/horovod-result/${JOB_NAME}/model
       fi
     else # abnormally finished
-      if [ ! -z "$S3_URL" ]
+      if [ ! -z "$SAVE_TO_S3" ]
       then
         echo "horovod job is abnormally finished"
         if [ -d "/result/checkpoint" ]
