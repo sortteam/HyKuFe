@@ -112,6 +112,9 @@ const (
 	Terminating JobPhase = "Terminating"
 	// Terminated is the phase that the job is finished unexpected, e.g. events
 	Terminated JobPhase = "Terminated"
+
+	// job이 완료된 후 처리되는 상태
+	PostProcessing JobPhase = "PostProcessing"
 	// Failed is the phase that the job is restarted failed reached the maximum number of retries.
 	Failed JobPhase = "Failed"
 )

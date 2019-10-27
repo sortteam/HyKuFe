@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -102,11 +103,11 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
-	jsonByte, err := json.Marshal(instance)
-	if err != nil {
-
-	}
-	reqLogger.Info("CR definition", "horovodjob", string(jsonByte))
+	//jsonByte, err := json.Marshal(instance)
+	//if err != nil {
+	//
+	//}
+	//reqLogger.Info("CR definition", "horovodjob", string(jsonByte))
 	// Define a new Pod object
 	volcanoJob, err := r.newVolcanoJobForCR(instance)
 	if err != nil {
@@ -125,8 +126,8 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Check if this HorovodJob already exists
-	found := &volcanov1alpha1.Job{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: volcanoJob.Name, Namespace: volcanoJob.Namespace}, found)
+	foundVolcanoJob := &volcanov1alpha1.Job{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: volcanoJob.Name, Namespace: volcanoJob.Namespace}, foundVolcanoJob)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new VolcanoJob", "VolcanoJob.Namespace", volcanoJob.Namespace, "VolcanoJob.Name", volcanoJob.Name)
 		err = r.client.Create(context.TODO(), volcanoJob)
@@ -140,58 +141,101 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	// Sync Status
+
+
+	oldHorovodJobState := instance.Status.State
+	//oldVolcanoJobState := foundVolcanoJob.Status.State
+
+	if updateState(instance, foundVolcanoJob) == nil {
+		if !reflect.DeepEqual(oldHorovodJobState, instance.Status.State) {
+			log.Info("update horovod job status!!!")
+			// Update HorovodJob Status
+			jsonByte, err := json.Marshal(instance)
+			if err != nil {
+
+			}
+			reqLogger.Info("CR definition", "horovodjob", string(jsonByte))
+			log.Error(err, "Faid to update horovodjob resource status")
+			if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+				jsonByte, err := json.Marshal(instance)
+				if err != nil {
+
+				}
+				reqLogger.Info("CR definition", "horovodjob", string(jsonByte))
+				log.Error(err, "Faid to update horovodjob resource status")
+				return reconcile.Result{}, err
+			}
+		}
+
+		//if !reflect.DeepEqual(oldVolcanoJobState, foundVolcanoJob.Status.State) {
+		//	// Update VolcanoJob Status
+		//	if err := r.client.Status().Update(context.TODO(), foundVolcanoJob); err != nil {
+		//		log.Error(err, "Fail to update volcanojob resource status")
+		//		return reconcile.Result{}, err
+		//	}
+		//}
+	}
+
+
+
 	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: VolcanoJob already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	reqLogger.Info("Skip reconcile: VolcanoJob already exists", "Pod.Namespace", foundVolcanoJob.Namespace, "Pod.Name", foundVolcanoJob.Name)
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-//func newPodForCR(cr *hykufev1alpha1.HorovodJob) *corev1.Pod {
-//	labels := map[string]string{
-//		"app": cr.Name,
-//	}
-//	return &corev1.Pod{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      cr.Name + "-pod",
-//			Namespace: cr.Namespace,
-//			Labels:    labels,
-//		},
-//		Spec: corev1.PodSpec{
-//			Containers: []corev1.Container{
-//				{
-//					Name:    "busybox",
-//					Image:   "busybox",
-//					Command: []string{"sleep", "3600"},
-//				},
-//			},
-//		},
-//	}
-//}
 
 func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) (*volcanov1alpha1.Job, error) {
 	labels := map[string]string {
 		"app": cr.Name,
 	}
+	// Deep copy horovodjob cr
+	//var copiedHorovodJob *hykufev1alpha1.HorovodJob
+	copiedHorovodJob := &hykufev1alpha1.HorovodJob{}
+	*copiedHorovodJob = *cr
+
+
+	copiedHorovodJob.Spec.Volumes = make([] hykufev1alpha1.VolumeSpec, len(cr.Spec.Volumes))
+	//copy(copiedHorovodJob.Spec.Volumes, cr.Spec.Volumes)
+
+	copiedHorovodJob.Spec.DataSources = make([] hykufev1alpha1.DataSourceSpec, len(cr.Spec.DataSources))
+	//copy(copiedHorovodJob.Spec.DataSources, cr.Spec.DataSources)
+	for i, _ := range copiedHorovodJob.Spec.DataSources {
+		copiedHorovodJob.Spec.DataSources[i].S3Source = &hykufev1alpha1.S3Spec{}
+		*copiedHorovodJob.Spec.DataSources[i].S3Source = *cr.Spec.DataSources[i].S3Source
+	}
+
+	copiedHorovodJob.Spec.Master.Template.Spec.Containers = make([] v1.Container, len(cr.Spec.Master.Template.Spec.Containers))
+	copy(copiedHorovodJob.Spec.Master.Template.Spec.Containers, cr.Spec.Master.Template.Spec.Containers)
+
+	copiedHorovodJob.Spec.Worker.Template.Spec.Containers = make([] v1.Container, len(cr.Spec.Worker.Template.Spec.Containers))
+	copy(copiedHorovodJob.Spec.Worker.Template.Spec.Containers, cr.Spec.Worker.Template.Spec.Containers)
+
 	volcanojob := &volcanov1alpha1.Job {
 		ObjectMeta: metav1.ObjectMeta{
-			Name:		cr.Name + "-volcanojob",
-			Namespace:	cr.Namespace,
+			Name:		copiedHorovodJob.Name + "-volcanojob",
+			Namespace:	copiedHorovodJob.Namespace,
 			Labels:		labels,
 		},
 		Spec: volcanov1alpha1.JobSpec{
 			// SchedulerName:           "",
-			MinAvailable:            cr.Spec.Worker.Replicas + 1,
+			MinAvailable:            copiedHorovodJob.Spec.Worker.Replicas + 1,
 			Tasks: []volcanov1alpha1.TaskSpec{
 				volcanov1alpha1.TaskSpec{
-					Name:     cr.Spec.Master.Name,
+					Name:     copiedHorovodJob.Spec.Master.Name,
 					Replicas: 1,
-					Template: cr.Spec.Master.Template,
-					Policies: nil,
+					Template: copiedHorovodJob.Spec.Master.Template,
+					Policies: []volcanov1alpha1.LifecyclePolicy{
+						{
+							Action:   "CompleteJob",
+							Event:    "TaskCompleted",
+						},
+					},
 				},
 				volcanov1alpha1.TaskSpec{
-					Name:     cr.Spec.Worker.Name,
-					Replicas: cr.Spec.Worker.Replicas,
-					Template: cr.Spec.Worker.Template,
+					Name:     copiedHorovodJob.Spec.Worker.Name,
+					Replicas: copiedHorovodJob.Spec.Worker.Replicas,
+					Template: copiedHorovodJob.Spec.Worker.Template,
 					Policies: nil,
 				},
 			},
@@ -203,9 +247,9 @@ func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) 
 				"svc": []string{},
 			},
 			//Queue:                   "",
-			MaxRetry:                cr.Spec.MaxRetry,
-			TTLSecondsAfterFinished: cr.Spec.TTLSecondsAfterFinished,
-			PriorityClassName:       cr.Spec.PriorityClassName,
+			MaxRetry:                copiedHorovodJob.Spec.MaxRetry,
+			TTLSecondsAfterFinished: copiedHorovodJob.Spec.TTLSecondsAfterFinished,
+			PriorityClassName:       copiedHorovodJob.Spec.PriorityClassName,
 		},
 	}
 
@@ -273,13 +317,14 @@ func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) 
 
 	// Add NFS Volume For data save
 	if cr.Spec.DataShareMode.NFSMode != nil {
+
 		masterJobSpec.Volumes = append(masterJobSpec.Volumes, v1.Volume{
 			Name:         "data-volume",
 			VolumeSource: v1.VolumeSource{
 				NFS: &v1.NFSVolumeSource{
 					// FIXME : 임시로 지정
-					Server:   cr.Spec.DataShareMode.NFSMode.IPAddress,
-					Path:     cr.Spec.DataShareMode.NFSMode.Path,
+					Server:   copiedHorovodJob.Spec.DataShareMode.NFSMode.IPAddress,
+					Path:     copiedHorovodJob.Spec.DataShareMode.NFSMode.Path,
 					ReadOnly: false,
 				},
 			},
@@ -298,8 +343,8 @@ func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) 
 			VolumeSource: v1.VolumeSource{
 
 				NFS: &v1.NFSVolumeSource{
-					Server:   cr.Spec.DataShareMode.NFSMode.IPAddress,
-					Path:     cr.Spec.DataShareMode.NFSMode.Path,
+					Server:   copiedHorovodJob.Spec.DataShareMode.NFSMode.IPAddress,
+					Path:     copiedHorovodJob.Spec.DataShareMode.NFSMode.Path,
 					ReadOnly: true,
 				},
 			},
@@ -350,7 +395,7 @@ func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) 
 	// add initContainer for data sync from data source
 	volcanojob.Spec.Tasks[0].Template.Spec.InitContainers = []v1.Container{}
 
-	for i, dataSource := range cr.Spec.DataSources {
+	for i, dataSource := range copiedHorovodJob.Spec.DataSources {
 
 		// FIXME : 임시 코드
 		// Sidecar 컨테이너를 찾는다.
@@ -444,15 +489,65 @@ func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) 
 		}
 	}
 
-	jsonByte, err := json.Marshal(volcanojob)
-	if err != nil {
-
-	}
-	log.Info(string(jsonByte))
+	//jsonByte, err := json.Marshal(volcanojob)
+	//if err != nil {
+	//
+	//}
+	//log.Info(string(jsonByte))
 
 	// Set HorovodJob instance as the owner of the VolcanoJob
-	controllerutil.SetControllerReference(cr, volcanojob, r.scheme);
+
+	if err := controllerutil.SetControllerReference(cr, volcanojob, r.scheme); err != nil {
+		log.Error(err, "Volcanojob의 owner를 Horovodjob으로 설정할 수 없습니다.")
+	}
 	return volcanojob, nil
+}
+
+func updateState(horovodJob *hykufev1alpha1.HorovodJob, volcanoJob *volcanov1alpha1.Job) error {
+	nowHorovodJobState := &horovodJob.Status.State
+	nowVolcanoJobState := &volcanoJob.Status.State
+
+
+
+	if nowVolcanoJobState.Phase == volcanov1alpha1.Pending {
+		if nowHorovodJobState.Phase != hykufev1alpha1.Pending {
+			nowHorovodJobState.Phase = hykufev1alpha1.Pending
+			nowHorovodJobState.LastTransitionTime = metav1.Now()
+		}
+	} else if nowVolcanoJobState.Phase == volcanov1alpha1.Failed {
+		if nowHorovodJobState.Phase != hykufev1alpha1.Failed {
+			nowHorovodJobState.Phase = hykufev1alpha1.Failed
+			nowHorovodJobState.LastTransitionTime = metav1.Now()
+		}
+	} else if nowVolcanoJobState.Phase == volcanov1alpha1.Running {
+		if nowHorovodJobState.Phase != hykufev1alpha1.Running {
+			nowHorovodJobState.Phase = hykufev1alpha1.Running
+			nowHorovodJobState.LastTransitionTime = metav1.Now()
+		}
+	} else if nowVolcanoJobState.Phase == volcanov1alpha1.Aborted {
+		if nowHorovodJobState.Phase != hykufev1alpha1.Aborted {
+			nowHorovodJobState.Phase = hykufev1alpha1.Aborted
+			nowHorovodJobState.LastTransitionTime = metav1.Now()
+		}
+	} else if nowVolcanoJobState.Phase == volcanov1alpha1.Completed {
+		if nowHorovodJobState.Phase != hykufev1alpha1.PostProcessing {
+			nowHorovodJobState.Phase = hykufev1alpha1.PostProcessing
+			nowHorovodJobState.LastTransitionTime = metav1.Now()
+		}
+	}
+
+	if nowHorovodJobState.Phase == hykufev1alpha1.Completed {
+		if nowVolcanoJobState.Phase != volcanov1alpha1.Terminating {
+			nowVolcanoJobState.Phase = volcanov1alpha1.Terminating
+			nowVolcanoJobState.LastTransitionTime = metav1.Now()
+
+			nowHorovodJobState.Phase = hykufev1alpha1.Terminating
+			nowHorovodJobState.LastTransitionTime = metav1.Now()
+		}
+	}
+	// last Transition 수정하기
+
+	return nil
 }
 
 func validateHorovodJobCR(cr *hykufev1alpha1.HorovodJob) error {
