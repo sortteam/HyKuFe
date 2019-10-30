@@ -30,7 +30,7 @@ class HyKuFeBuilder:
         self.image = image
         return self
 
-    def setCpu(self, cpu):
+    def setCPU(self, cpu):
         self.cpu = cpu
         return self
 
@@ -38,7 +38,7 @@ class HyKuFeBuilder:
         self.memory = memory
         return self
 
-    def setGpu(self, gpu):
+    def setGPU(self, gpu):
         self.gpu = gpu
         return self
 
