@@ -1,7 +1,7 @@
 apiVersion: hykufe.com/v1alpha1
 kind: HorovodJob
 metadata:
-  name: horovod-job-example
+  name: horovod-job-example #
   labels:
     "volcano.sh/job-type": Horovod
 spec:
@@ -43,25 +43,25 @@ spec:
                 sleep 10;
                 mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py 2>&1 | tee /result/log/mpi_log;
 
-            image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu
+            image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu #
             name: master
             ports:
               - containerPort: 22
                 name: job-port
             resources:
               requests:
-                cpu: "2000m"
-                memory: "4096Mi"
-                nvidia.com/gpu: "1"
+                cpu: "2000m" #
+                memory: "4096Mi" #
+                nvidia.com/gpu: "1" #
               limits:
-                cpu: "2000m"
-                memory: "4096Mi"
-                nvidia.com/gpu: "1"
+                cpu: "2000m" #
+                memory: "4096Mi" #
+                nvidia.com/gpu: "1" #
         restartPolicy: OnFailure
         imagePullSecrets:
           - name: default-secret
   worker:
-    replicas: 2
+    replicas: 2 #
     name: worker
     template:
       spec:
@@ -71,21 +71,20 @@ spec:
               - -c
               - |
                 mkdir -p /var/run/sshd; /usr/sbin/sshd -D;
-            image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu
+            image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu #
             name: worker
             ports:
               - containerPort: 22
                 name: job-port
             resources:
               requests:
-                cpu: "2000m"
-                memory: "4096Mi"
-                nvidia.com/gpu: "1"
+                cpu: "2000m" #
+                memory: "4096Mi" #
+                nvidia.com/gpu: "1" #
               limits:
-                cpu: "2000m"
-                memory: "4096Mi"
-                nvidia.com/gpu: "1"
+                cpu: "2000m" #
+                memory: "4096Mi" #
+                nvidia.com/gpu: "1" #
         restartPolicy: OnFailure
         imagePullSecrets:
           - name: default-secret
-—
