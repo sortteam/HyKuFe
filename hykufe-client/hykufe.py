@@ -9,6 +9,9 @@ class HyKuFe:
     def __str__(self):
         return json.dumps(self.data)
 
+    def writeYamlFile(self, file_name):
+        yaml.dump(self.data, open(file_name, 'w'))
+
 
 class HyKuFeBuilder:
     def __init__(self):

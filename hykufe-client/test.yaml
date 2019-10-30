@@ -1,0 +1,97 @@
+apiVersion: hykufe.com/v1alpha1
+kind: HorovodJob
+metadata:
+  labels:
+    volcano.sh/job-type: Horovod
+  name: test1
+spec:
+  dataShareMode:
+    nfsMode:
+      ipAddress: 10.233.96.94
+      path: /volume
+  dataSources:
+  - name: s3-secret
+    s3Source:
+      directory: data
+      s3SecretName: s3-secret
+  master:
+    name: master
+    replicas: 1
+    template:
+      spec:
+        containers:
+        - command:
+          - /bin/bash
+          - -c
+          - 'set -o pipefail;
+
+            WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
+
+            mkdir -p /var/run/sshd; /usr/sbin/sshd;
+
+            mkdir -p /result/log;
+
+            sleep 10;
+
+            mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py
+            2>&1 | tee /result/log/mpi_log;
+
+            '
+          image: test2
+          name: master
+          ports:
+          - containerPort: 22
+            name: job-port
+          resources:
+            limits:
+              cpu: test3
+              memory: test4
+              nvidia.com/gpu: test5
+            requests:
+              cpu: test3
+              memory: test4
+              nvidia.com/gpu: test5
+        imagePullSecrets:
+        - name: default-secret
+        restartPolicy: OnFailure
+  schedulerName: volcano
+  volumes:
+  - mountPath: /data
+    volumeClaim:
+      accessModes:
+      - ReadWriteMany
+      resources:
+        requests:
+          storage: 20Gi
+      storageClassName: manual
+      volumeMode: FileSystem
+    volumeClaimName: data-volume
+  worker:
+    name: worker
+    replicas: test6
+    template:
+      spec:
+        containers:
+        - command:
+          - /bin/sh
+          - -c
+          - 'mkdir -p /var/run/sshd; /usr/sbin/sshd -D;
+
+            '
+          image: test2
+          name: worker
+          ports:
+          - containerPort: 22
+            name: job-port
+          resources:
+            limits:
+              cpu: test3
+              memory: test4
+              nvidia.com/gpu: test5
+            requests:
+              cpu: test3
+              memory: test4
+              nvidia.com/gpu: test5
+        imagePullSecrets:
+        - name: default-secret
+        restartPolicy: OnFailure
