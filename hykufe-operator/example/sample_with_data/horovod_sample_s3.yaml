@@ -5,11 +5,8 @@ metadata:
   labels:
     "volcano.sh/job-type": Horovod
 spec:
-  minAvailable: 3
   schedulerName: volcano
-  #  plugins:
-  #    ssh: []
-  #    svc: []
+
   dataShareMode:
     nfsMode:
       ipAddress: ???
@@ -17,11 +14,11 @@ spec:
   dataSources:
     - name: "s3-train"
       s3Source:
-        accessKeyId: ACCESS_KEY_HERE
-        secretAccessKey: SECRET_ACCESS_KEY_HERE
-        region : ap-northeast-2
-        bucket : sagemaker-ap-northeast-2-851097688157
+        s3SecretName: "s3-secret"
         directory : data
+  volumes:
+    - volumeClaimName: "data-volume"
+      mountPath: "/data"
   master:
     replicas: 1
     name: master

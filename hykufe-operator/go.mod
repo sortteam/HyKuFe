@@ -2,10 +2,13 @@ module hykufe-operator
 
 require (
 	github.com/NYTimes/gziphandler v1.0.1 // indirect
+	github.com/aws/aws-sdk-go v1.25.25 // indirect
+	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.0
 	github.com/operator-framework/operator-sdk v0.10.1-0.20190906161029-1cb0481ca946
 	github.com/spf13/pflag v1.0.3
 	github.com/volcano-sh/volcano v0.0.0-20190830035915-92484dae9086
+	golang.org/x/build v0.0.0-20190314133821-5284462c4bec
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
 	k8s.io/client-go v11.0.0+incompatible

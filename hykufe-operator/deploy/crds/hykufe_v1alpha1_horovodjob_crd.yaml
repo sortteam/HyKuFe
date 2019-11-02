@@ -50,26 +50,14 @@ spec:
                     type: string
                   s3Source:
                     properties:
-                      accessKeyId:
-                        description: Access Key
-                        type: string
-                      bucket:
-                        description: Bucket Name
-                        type: string
                       directory:
                         description: Directory Name
                         type: string
-                      region:
-                        description: 사용할 S3의 Region을 입력합니다.
-                        type: string
-                      secretAccessKey:
-                        description: Secret Access key
+                      s3SecretName:
+                        description: S3 Secret Name
                         type: string
                     required:
-                    - accessKeyId
-                    - secretAccessKey
-                    - region
-                    - bucket
+                    - s3SecretName
                     - directory
                     type: object
                 required:

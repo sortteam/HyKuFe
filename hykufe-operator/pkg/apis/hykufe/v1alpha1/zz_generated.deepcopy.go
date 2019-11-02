@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	batchv1alpha1 "github.com/volcano-sh/volcano/pkg/apis/batch/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -117,7 +118,7 @@ func (in *HorovodJobSpec) DeepCopyInto(out *HorovodJobSpec) {
 	*out = *in
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
-		*out = make([]VolumeSpec, len(*in))
+		*out = make([]batchv1alpha1.VolumeSpec, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
