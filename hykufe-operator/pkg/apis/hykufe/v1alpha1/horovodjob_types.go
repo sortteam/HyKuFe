@@ -22,6 +22,8 @@ type HorovodJobSpec struct {
 
 	DataSources []DataSourceSpec `json:"dataSources,omitempty"`
 
+	AwsSpec *AwsSpec `json:"awsSpec,omitempty"`
+
 	// Data share mode
 	DataShareMode DataShareSpec `json:"dataShareMode,omitempty"`
 
@@ -154,6 +156,9 @@ type HorovodJobState struct {
 type HorovodJobStatus struct {
 	// Current state of Job.
 	State HorovodJobState `json:"state,omitempty" protobuf:"bytes,1,opt,name=state"`
+
+	// Provisioning
+	InstanceID []string `json:"instanceID,omitempty"`
 
 	// The minimal available pods to run for this Job
 	// +optional

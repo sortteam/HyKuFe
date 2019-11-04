@@ -39,7 +39,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileHorovodJob{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileHorovodJob{client: mgr.GetClient(), scheme: mgr.GetScheme(), awsController: NewAWSController()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -84,6 +84,7 @@ type ReconcileHorovodJob struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	awsController *AWSController
 }
 
 // Reconcile reads that state of the cluster for a HorovodJob object and makes changes based on the state read
@@ -111,6 +112,11 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	err2 := r.controlProvisioning(instance, reqLogger)
+	if err2 != nil {
+		return reconcile.Result{}, err2
+	}
+
 	time, err := r.controlPreprocessingJob(instance, reqLogger)
 	if err != nil || time != 0 {
 		if time != 0 {
@@ -124,7 +130,7 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 
-	// Define a new Pod object
+	// Define a new Object
 	volcanoJob, err := r.newVolcanoJobForCR(instance)
 	if err != nil {
 		updateErr := r.client.Status().Update(context.TODO(), instance)
@@ -251,7 +257,9 @@ func updateState(horovodJob *hykufev1alpha1.HorovodJob, volcanoJob *volcanov1alp
 }
 
 func (r *ReconcileHorovodJob) controlPreprocessingJob(instance *hykufev1alpha1.HorovodJob, reqLogger logr.Logger) (time.Duration, error) {
-
+	if !(instance.Status.State.Phase == hykufev1alpha1.Provisioned || instance.Status.State.Phase == hykufev1alpha1.Preprocessing) {
+		return 0, nil
+	}
 	preprocessingJob, err := r.newPreProcessingJob(instance)
 	if err != nil {
 		reqLogger.Error(err, "Fail to make preprocessing job")
@@ -270,7 +278,7 @@ func (r *ReconcileHorovodJob) controlPreprocessingJob(instance *hykufev1alpha1.H
 		Name:      preprocessingJob.Name,
 	}, foundPreprocessingJob)
 
-	if err != nil && errors.IsNotFound(err) && instance.Status.State.Phase == "" {
+	if err != nil && errors.IsNotFound(err) && (instance.Status.State.Phase == "" || instance.Status.State.Phase == hykufev1alpha1.Provisioned) {
 		reqLogger.Info("Creating a new Preprocessing Job")
 		err = r.client.Create(context.TODO(), preprocessingJob)
 		if err != nil {
@@ -339,4 +347,44 @@ func (r *ReconcileHorovodJob) controlPreprocessingJob(instance *hykufev1alpha1.H
 	}
 
 	return 0, nil
+}
+
+func (r *ReconcileHorovodJob) controlProvisioning(instance *hykufev1alpha1.HorovodJob, reqLogger logr.Logger) error {
+
+	nowState := instance.Status.State.Phase
+	if instance.Spec.AwsSpec == nil {
+		return nil
+	}
+
+	if nowState == hykufev1alpha1.Provisioned {
+		return nil
+	}
+
+	if nowState == "" || nowState == hykufev1alpha1.Pending || nowState == hykufev1alpha1.Provisioning {
+		// 상태를 Provisining으로 변경
+		if err := r.UpdateState(instance, hykufev1alpha1.Provisioning); err != nil {
+			reqLogger.Error(err, "Fail to Update Horovod State")
+			return err
+		}
+
+		// AWS 스펙에 맞게 인스턴스 생성
+		reqLogger.Info("Create EC2 Instance...")
+		ec2Instances, err := r.awsController.CreateEC2Instance(instance.Spec.AwsSpec.InstanceType, instance.Spec.AwsSpec.Replicas)
+		if err != nil {
+			reqLogger.Error(err, "Fail to create EC2 Instances")
+			return err
+		}
+		instance.Status.InstanceID = []string{}
+		for _, ec2Info := range ec2Instances {
+			instance.Status.InstanceID = append(instance.Status.InstanceID, *ec2Info.InstanceId)
+		}
+
+		if err := r.UpdateState(instance, hykufev1alpha1.Provisioned); err != nil {
+			reqLogger.Error(err, "Fail to Update Horovod State Provisioned")
+			return err
+		}
+		reqLogger.Info("Created EC2 Instance!!!")
+	}
+
+	return nil
 }

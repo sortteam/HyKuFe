@@ -31,3 +31,6 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "hykufe-operator"
+          envFrom:
+            - secretRef:
+                name: aws-credential-secret

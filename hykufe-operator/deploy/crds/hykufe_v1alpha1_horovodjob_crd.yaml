@@ -29,6 +29,17 @@ spec:
           type: object
         spec:
           properties:
+            awsSpec:
+              properties:
+                instanceType:
+                  type: string
+                replicas:
+                  format: int64
+                  type: integer
+              required:
+              - instanceType
+              - replicas
+              type: object
             dataShareMode:
               description: Data share mode
               properties:
@@ -143,6 +154,11 @@ spec:
               description: The number of pods which reached phase Failed.
               format: int32
               type: integer
+            instanceID:
+              description: Provisioning
+              items:
+                type: string
+              type: array
             minAvailable:
               description: The minimal available pods to run for this Job
               format: int32

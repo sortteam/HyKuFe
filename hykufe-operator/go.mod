@@ -2,7 +2,7 @@ module hykufe-operator
 
 require (
 	github.com/NYTimes/gziphandler v1.0.1 // indirect
-	github.com/aws/aws-sdk-go v1.25.25 // indirect
+	github.com/aws/aws-sdk-go v1.25.25
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.0
 	github.com/operator-framework/operator-sdk v0.10.1-0.20190906161029-1cb0481ca946
