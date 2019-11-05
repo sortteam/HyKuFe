@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"hykufe-operator/pkg/controller/ssh"
 	"time"
 )
 
@@ -50,6 +51,7 @@ func (ac *AWSController) CreateEC2Instance(instanceType string, replicas int64) 
 				},
 			},
 		},
+		KeyName:	aws.String("SoRT"),
 
 		// TODO: Security Group, Subnet 추
 	})
@@ -66,6 +68,7 @@ func (ac *AWSController) CreateEC2Instance(instanceType string, replicas int64) 
 
 
 	runningCount := int64(0)
+	ipAggreation := ""
 	for runningCount != replicas {
 		runningCount = 0
 		output, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
@@ -79,12 +82,24 @@ func (ac *AWSController) CreateEC2Instance(instanceType string, replicas int64) 
 			for _, status := range r.Instances {
 				if *status.State.Name == ec2.InstanceStateNameRunning {
 					runningCount++
+					ipAggreation += *status.PublicIpAddress
+					ipAggreation += " "
 				}
 			}
 		}
 		println(fmt.Sprintf("running : %d, replicas : %d", runningCount, replicas))
 
 		time.Sleep(time.Second * 3)
+	}
+	sshClient := &ssh.SshClient{}
+	if err := sshClient.NewSshClient("221.148.248.140", 7777, "sortqwer1!"); err != nil {
+		return nil, fmt.Errorf("Failed to SSH Handshake : %v", err)
+	}
+
+
+
+	if err := sshClient.CommandExecution(fmt.Sprintf("sh -c ~/onprem-kubespray/add_node.sh %s", ipAggreation)); err != nil {
+		return nil, err
 	}
 
 
@@ -95,7 +110,7 @@ func (ac *AWSController) DeleteEC2Instance(instanceID string, ) error {
 		InstanceIds: []*string{
 			aws.String(instanceID),
 		},
-		DryRun: aws.Bool(true),
+		DryRun: aws.Bool(false),
 	}
 
 	// Create EC2 service client
