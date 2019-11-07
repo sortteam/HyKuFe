@@ -1,90 +1,97 @@
 apiVersion: hykufe.com/v1alpha1
 kind: HorovodJob
 metadata:
-  name: horovod-job-example #
   labels:
-    "volcano.sh/job-type": Horovod
+    volcano.sh/job-type: Horovod
+  name: horovod-job-example
 spec:
-  schedulerName: volcano
   dataShareMode:
     nfsMode:
       ipAddress: 10.233.96.94
       path: /volume
   dataSources:
-    - name: "s3-secret"
-      s3Source:
-        s3SecretName: s3-secret
-        directory: data
-  volumes:
-    - volumeClaimName: "data-volume"
-      mountPath: "/data"
-      volumeClaim:
-        accessModes:
-          - ReadWriteMany
-        storageClassName: manual
-        resources:
-          requests:
-            storage: 20Gi
-        volumeMode: FileSystem
+  - name: s3-secret
+    s3Source:
+      directory: data
+      s3SecretName: s3-secret
   master:
-    replicas: 1
     name: master
+    replicas: 1
     template:
       spec:
         containers:
-          - command:
-              - /bin/bash
-              - -c
-              - |
-                set -o pipefail;
-                WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
-                mkdir -p /var/run/sshd; /usr/sbin/sshd;
-                mkdir -p /result/log;
-                sleep 10;
-                mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py 2>&1 | tee /result/log/mpi_log;
+        - command:
+          - /bin/bash
+          - -c
+          - 'set -o pipefail;
 
-            image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu #
-            name: master
-            ports:
-              - containerPort: 22
-                name: job-port
-            resources:
-              requests:
-                cpu: "2000m" #
-                memory: "4096Mi" #
-                nvidia.com/gpu: "1" #
-              limits:
-                cpu: "2000m" #
-                memory: "4096Mi" #
-                nvidia.com/gpu: "1" #
-        restartPolicy: OnFailure
+            WORKER_HOST=`cat /etc/volcano/worker.host | tr "\n" ","`;
+
+            mkdir -p /var/run/sshd; /usr/sbin/sshd;
+
+            mkdir -p /result/log;
+
+            sleep 10;
+
+            mpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py
+            2>&1 | tee /result/log/mpi_log;
+
+            '
+          image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu
+          name: master
+          ports:
+          - containerPort: 22
+            name: job-port
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4096Mi
+              nvidia.com/gpu: '1'
+            requests:
+              cpu: 2000m
+              memory: 4096Mi
+              nvidia.com/gpu: '1'
         imagePullSecrets:
-          - name: default-secret
+        - name: default-secret
+        restartPolicy: OnFailure
+  schedulerName: volcano
+  volumes:
+  - mountPath: /data
+    volumeClaim:
+      accessModes:
+      - ReadWriteMany
+      resources:
+        requests:
+          storage: 20Gi
+      storageClassName: manual
+      volumeMode: FileSystem
+    volumeClaimName: data-volume
   worker:
-    replicas: 2 #
     name: worker
+    replicas: 2
     template:
       spec:
         containers:
-          - command:
-              - /bin/sh
-              - -c
-              - |
-                mkdir -p /var/run/sshd; /usr/sbin/sshd -D;
-            image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu #
-            name: worker
-            ports:
-              - containerPort: 22
-                name: job-port
-            resources:
-              requests:
-                cpu: "2000m" #
-                memory: "4096Mi" #
-                nvidia.com/gpu: "1" #
-              limits:
-                cpu: "2000m" #
-                memory: "4096Mi" #
-                nvidia.com/gpu: "1" #
-        restartPolicy: OnFailure
+        - command:
+          - /bin/sh
+          - -c
+          - 'mkdir -p /var/run/sshd; /usr/sbin/sshd -D;
+
+            '
+          image: horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu
+          name: worker
+          ports:
+          - containerPort: 22
+            name: job-port
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4096Mi
+              nvidia.com/gpu: '1'
+            requests:
+              cpu: 2000m
+              memory: 4096Mi
+              nvidia.com/gpu: '1'
         imagePullSecrets:
-          - name: default-secret
+        - name: default-secret
+        restartPolicy: OnFailure
