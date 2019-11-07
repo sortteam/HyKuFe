@@ -4,7 +4,33 @@ import json
 
 class HyKuFe:
     def __init__(self, name, image, cpu, memory, gpu, replica):
-        self.data = {'apiVersion': 'hykufe.com/v1alpha1', 'kind': 'HorovodJob', 'metadata': {'name': name, 'labels': {'volcano.sh/job-type': 'Horovod'}}, 'spec': {'schedulerName': 'volcano', 'dataShareMode': {'nfsMode': {'ipAddress': '10.233.96.94', 'path': '/volume'}}, 'dataSources': [{'name': 's3-secret', 's3Source': {'s3SecretName': 's3-secret', 'directory': 'data'}}], 'volumes': [{'volumeClaimName': 'data-volume', 'mountPath': '/data', 'volumeClaim': {'accessModes': ['ReadWriteMany'], 'storageClassName': 'manual', 'resources': {'requests': {'storage': '20Gi'}}, 'volumeMode': 'FileSystem'}}], 'master': {'replicas': 1, 'name': 'master', 'template': {'spec': {'containers': [{'command': ['/bin/bash', '-c', 'set -o pipefail;\nWORKER_HOST=`cat /etc/volcano/worker.host | tr "\\n" ","`;\nmkdir -p /var/run/sshd; /usr/sbin/sshd;\nmkdir -p /result/log;\nsleep 10;\nmpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py 2>&1 | tee /result/log/mpi_log;\n'], 'image': image, 'name': 'master', 'ports': [{'containerPort': 22, 'name': 'job-port'}], 'resources': {'requests': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}, 'limits': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}}}], 'restartPolicy': 'OnFailure', 'imagePullSecrets': [{'name': 'default-secret'}]}}}, 'worker': {'replicas': replica, 'name': 'worker', 'template': {'spec': {'containers': [{'command': ['/bin/sh', '-c', 'mkdir -p /var/run/sshd; /usr/sbin/sshd -D;\n'], 'image': image, 'name': 'worker', 'ports': [{'containerPort': 22, 'name': 'job-port'}], 'resources': {'requests': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}, 'limits': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}}}], 'restartPolicy': 'OnFailure', 'imagePullSecrets': [{'name': 'default-secret'}]}}}}}
+        
+        self.data = yaml.load(open('template.yaml'), Loader=yaml.FullLoader)
+        
+        self.data['metadata']['name'] = name
+        self.data['spec']['master']['template']['spec']['containers'][0]['image'] \
+            = self.data['spec']['worker']['template']['spec']['containers'][0]['image'] \
+                = image
+
+        self.data['spec']['master']['template']['spec']['containers'][0]['resources']['requests']['cpu'] \
+            = self.data['spec']['master']['template']['spec']['containers'][0]['resources']['limits']['cpu'] \
+                = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['requests']['cpu'] \
+                    = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['limits']['cpu'] \
+                        = cpu
+
+        self.data['spec']['master']['template']['spec']['containers'][0]['resources']['requests']['memory'] \
+            = self.data['spec']['master']['template']['spec']['containers'][0]['resources']['limits']['memory'] \
+                = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['requests']['memory'] \
+                    = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['limits']['memory'] \
+                        = memory
+
+        self.data['spec']['master']['template']['spec']['containers'][0]['resources']['requests']['nvidia.com/gpu'] \
+            = self.data['spec']['master']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] \
+                = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['requests']['nvidia.com/gpu'] \
+                    = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] \
+                        = gpu
+        
+        self.data['spec']['worker']['replicas'] = replica
 
     def __str__(self):
         return json.dumps(self.data)
