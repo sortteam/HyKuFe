@@ -6,5 +6,4 @@ import hykufe
 #     .setGPU("test5").setReplica("test6")\
 #     .build().writeYamlFile("test.yaml")
 
-hykufe.HyKuFeBuilder()..build('access_key', 'secret_key').uploadFileToS3('main.py')
-
+hykufe.HyKuFeBuilder().build('access_key', 'secret_key').createJOB()
