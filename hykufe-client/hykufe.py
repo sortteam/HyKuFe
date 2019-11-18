@@ -13,23 +13,17 @@ class HyKuFe:
             = self.data['spec']['worker']['template']['spec']['containers'][0]['image'] \
                 = image
 
-        self.data['spec']['master']['template']['spec']['containers'][0]['resources']['requests']['cpu'] \
-            = self.data['spec']['master']['template']['spec']['containers'][0]['resources']['limits']['cpu'] \
-                = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['requests']['cpu'] \
-                    = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['limits']['cpu'] \
-                        = cpu
+        master = self.data['spec']['master']['template']['spec']['containers'][0]['resources']
+        masterRequest = master['requests']
+        masterLimits = master['limits']
 
-        self.data['spec']['master']['template']['spec']['containers'][0]['resources']['requests']['memory'] \
-            = self.data['spec']['master']['template']['spec']['containers'][0]['resources']['limits']['memory'] \
-                = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['requests']['memory'] \
-                    = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['limits']['memory'] \
-                        = memory
+        worker = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']
+        workerRequest = worker['requests']
+        workerLimits = worker['limits']
 
-        self.data['spec']['master']['template']['spec']['containers'][0]['resources']['requests']['nvidia.com/gpu'] \
-            = self.data['spec']['master']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] \
-                = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['requests']['nvidia.com/gpu'] \
-                    = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] \
-                        = gpu
+        masterRequest['cpu'] = masterLimits['cpu'] = workerRequest['cpu'] = workerLimits['cpu'] = cpu
+        masterRequest['memory'] = masterLimits['memory'] = workerRequest['memory'] = workerLimits['memory'] = memory
+        masterRequest['gpu'] = masterLimits['gpu'] = workerRequest['gpu'] = workerLimits['gpu'] = gpu
         
         self.data['spec']['worker']['replicas'] = replica
 
