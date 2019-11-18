@@ -7,17 +7,17 @@ from pprint import pprint
 class HyKuFe:
     def __init__(self, accessKey, secretKey, s3BucketName, s3Directory, name, image, cpu, memory, gpu, replica):
         
-        # about kubernetes settings
+        config.load_kube_config()
         configuration = client.Configuration()
-        # configuration.api_key['authorization'] = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4tZHY1N3ciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImZmNWI3MGMzLWU3NTMtMTFlOS05NjI0LTcwODVjMjAyYmUyOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.JsJj2cp1kWyeZLz4Tm0NiCH7hwQOvlf1PtTXWX1k0drjev1LmXMJOIQk6GSAhlCK-eRUa2rLVENLtC6Tlo_hXVfl7frHDL1N6jjb3ZBpR4hvcxkCXPvkkr2mjIxGCKXcsPhGiGjZ1DazFxttT6Vh9DdZ04Oa8TiDP76Dqjo5Pfv3VvdV1YPLN8WXYEN-IJE7Et-tYgEz5eepxXACjISR6VsFly0os9F6RMLnkfxZxP-JOpZspmQPlnfTJXtpLRZGiLsAC3A7tEp2SLnHtPpmveIixK47HIpQXWNsTwOUZG9oTfDjRXODFAjiIn9dMRREfT1qjK4Wl6ovjyPGcxW0cA'
-        # # # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-        # configuration.api_key_prefix['authorization'] = 'Bearer'
-        
-        # configuration.api_key = {"authorization": "Bearer " + "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4tZHY1N3ciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImZmNWI3MGMzLWU3NTMtMTFlOS05NjI0LTcwODVjMjAyYmUyOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.JsJj2cp1kWyeZLz4Tm0NiCH7hwQOvlf1PtTXWX1k0drjev1LmXMJOIQk6GSAhlCK-eRUa2rLVENLtC6Tlo_hXVfl7frHDL1N6jjb3ZBpR4hvcxkCXPvkkr2mjIxGCKXcsPhGiGjZ1DazFxttT6Vh9DdZ04Oa8TiDP76Dqjo5Pfv3VvdV1YPLN8WXYEN-IJE7Et-tYgEz5eepxXACjISR6VsFly0os9F6RMLnkfxZxP-JOpZspmQPlnfTJXtpLRZGiLsAC3A7tEp2SLnHtPpmveIixK47HIpQXWNsTwOUZG9oTfDjRXODFAjiIn9dMRREfT1qjK4Wl6ovjyPGcxW0cA" }
-        
-        # configuration.verify_ssl = False
-        # configuration.host = "https://172.16.100.100:6443"
-        configuration.host = "127.0.0.1:8001"
+        secrets = client.CoreV1Api().list_namespaced_secret("default").items
+        for item in secrets:
+            if "hykufe" in item.metadata.name:
+                configuration.api_key['authorization'] = item.data['token']
+                break
+        configuration.api_key_prefix['authorization'] = 'Bearer'
+                
+        configuration.verify_ssl = False
+        configuration.host = "https://172.16.100.100:6443"
 
         self.api_instance = client.CustomObjectsApi(client.ApiClient(configuration))
 
