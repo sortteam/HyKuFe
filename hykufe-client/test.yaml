@@ -13,6 +13,7 @@ spec:
   - name: s3-secret
     s3Source:
       directory: data
+      name: storage
       s3SecretName: s3-secret
   master:
     name: master
@@ -45,12 +46,14 @@ spec:
           resources:
             limits:
               cpu: test3
+              gpu: test5
               memory: test4
-              nvidia.com/gpu: test5
+              nvidia.com/gpu: '1'
             requests:
               cpu: test3
+              gpu: test5
               memory: test4
-              nvidia.com/gpu: test5
+              nvidia.com/gpu: '1'
         imagePullSecrets:
         - name: default-secret
         restartPolicy: OnFailure
@@ -86,12 +89,14 @@ spec:
           resources:
             limits:
               cpu: test3
+              gpu: test5
               memory: test4
-              nvidia.com/gpu: test5
+              nvidia.com/gpu: '1'
             requests:
               cpu: test3
+              gpu: test5
               memory: test4
-              nvidia.com/gpu: test5
+              nvidia.com/gpu: '1'
         imagePullSecrets:
         - name: default-secret
         restartPolicy: OnFailure

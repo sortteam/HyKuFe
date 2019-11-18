@@ -1,24 +1,55 @@
 from kubernetes import client, config, utils
+import boto3
 import yaml
 import json
 from pprint import pprint
 
 class HyKuFe:
-    def __init__(self, name, image, cpu, memory, gpu, replica):
+    def __init__(self, accessKey, secretKey, s3BucketName, s3Directory, name, image, cpu, memory, gpu, replica):
         
-        self.data = {'apiVersion': 'hykufe.com/v1alpha1', 'kind': 'HorovodJob', 'metadata': {'name': name, 'labels': {'volcano.sh/job-type': 'Horovod'}}, 'spec': {'schedulerName': 'volcano', 'dataShareMode': {'nfsMode': {'ipAddress': '10.233.96.94', 'path': '/volume'}}, 'dataSources': [{'name': 's3-secret', 's3Source': {'s3SecretName': 's3-secret', 'directory': 'data'}}], 'volumes': [{'volumeClaimName': 'data-volume', 'mountPath': '/data', 'volumeClaim': {'accessModes': ['ReadWriteMany'], 'storageClassName': 'manual', 'resources': {'requests': {'storage': '20Gi'}}, 'volumeMode': 'FileSystem'}}], 'master': {'replicas': 1, 'name': 'master', 'template': {'spec': {'containers': [{'command': ['/bin/bash', '-c', 'set -o pipefail;\nWORKER_HOST=`cat /etc/volcano/worker.host | tr "\\n" ","`;\nmkdir -p /var/run/sshd; /usr/sbin/sshd;\nmkdir -p /result/log;\nsleep 10;\nmpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py 2>&1 | tee /result/log/mpi_log;\n'], 'image': image, 'name': 'master', 'ports': [{'containerPort': 22, 'name': 'job-port'}], 'resources': {'requests': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}, 'limits': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}}}], 'restartPolicy': 'OnFailure', 'imagePullSecrets': [{'name': 'default-secret'}]}}}, 'worker': {'replicas': replica, 'name': 'worker', 'template': {'spec': {'containers': [{'command': ['/bin/sh', '-c', 'mkdir -p /var/run/sshd; /usr/sbin/sshd -D;\n'], 'image': image, 'name': 'worker', 'ports': [{'containerPort': 22, 'name': 'job-port'}], 'resources': {'requests': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}, 'limits': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}}}], 'restartPolicy': 'OnFailure', 'imagePullSecrets': [{'name': 'default-secret'}]}}}}}
-
+        # about kubernetes settings
         configuration = client.Configuration()
         # configuration.api_key['authorization'] = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4tZHY1N3ciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImZmNWI3MGMzLWU3NTMtMTFlOS05NjI0LTcwODVjMjAyYmUyOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.JsJj2cp1kWyeZLz4Tm0NiCH7hwQOvlf1PtTXWX1k0drjev1LmXMJOIQk6GSAhlCK-eRUa2rLVENLtC6Tlo_hXVfl7frHDL1N6jjb3ZBpR4hvcxkCXPvkkr2mjIxGCKXcsPhGiGjZ1DazFxttT6Vh9DdZ04Oa8TiDP76Dqjo5Pfv3VvdV1YPLN8WXYEN-IJE7Et-tYgEz5eepxXACjISR6VsFly0os9F6RMLnkfxZxP-JOpZspmQPlnfTJXtpLRZGiLsAC3A7tEp2SLnHtPpmveIixK47HIpQXWNsTwOUZG9oTfDjRXODFAjiIn9dMRREfT1qjK4Wl6ovjyPGcxW0cA'
         # # # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
         # configuration.api_key_prefix['authorization'] = 'Bearer'
         
         # configuration.api_key = {"authorization": "Bearer " + "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4tZHY1N3ciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImZmNWI3MGMzLWU3NTMtMTFlOS05NjI0LTcwODVjMjAyYmUyOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.JsJj2cp1kWyeZLz4Tm0NiCH7hwQOvlf1PtTXWX1k0drjev1LmXMJOIQk6GSAhlCK-eRUa2rLVENLtC6Tlo_hXVfl7frHDL1N6jjb3ZBpR4hvcxkCXPvkkr2mjIxGCKXcsPhGiGjZ1DazFxttT6Vh9DdZ04Oa8TiDP76Dqjo5Pfv3VvdV1YPLN8WXYEN-IJE7Et-tYgEz5eepxXACjISR6VsFly0os9F6RMLnkfxZxP-JOpZspmQPlnfTJXtpLRZGiLsAC3A7tEp2SLnHtPpmveIixK47HIpQXWNsTwOUZG9oTfDjRXODFAjiIn9dMRREfT1qjK4Wl6ovjyPGcxW0cA" }
+        
         # configuration.verify_ssl = False
         # configuration.host = "https://172.16.100.100:6443"
         configuration.host = "127.0.0.1:8001"
 
         self.api_instance = client.CustomObjectsApi(client.ApiClient(configuration))
+
+
+        # about yaml
+        self.data = yaml.load(open('template.yaml'), Loader=yaml.FullLoader)
+
+        self.data['spec']['dataSources'][0]['s3Source']['name'] = s3BucketName
+        self.data['spec']['dataSources'][0]['s3Source']['directory'] = s3Directory
+
+        self.data['metadata']['name'] = name
+        self.data['spec']['master']['template']['spec']['containers'][0]['image'] \
+            = self.data['spec']['worker']['template']['spec']['containers'][0]['image'] \
+                = image
+
+        master = self.data['spec']['master']['template']['spec']['containers'][0]['resources']
+        masterRequest = master['requests']
+        masterLimits = master['limits']
+
+        worker = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']
+        workerRequest = worker['requests']
+        workerLimits = worker['limits']
+
+        masterRequest['cpu'] = masterLimits['cpu'] = workerRequest['cpu'] = workerLimits['cpu'] = cpu
+        masterRequest['memory'] = masterLimits['memory'] = workerRequest['memory'] = workerLimits['memory'] = memory
+        masterRequest['gpu'] = masterLimits['gpu'] = workerRequest['gpu'] = workerLimits['gpu'] = gpu
+        
+        self.data['spec']['worker']['replicas'] = replica
+        
+
+        # about aws settings
+        self.s3Client = boto3.client('s3', aws_access_key_id=accessKey, aws_secret_access_key=secretKey)
 
     def __str__(self):
         return json.dumps(self.data)
@@ -37,9 +68,15 @@ class HyKuFe:
         
         pprint(api_response)
 
+    def uploadFileToS3(self, filePath):
+        self.s3Client.upload_file(filePath, \
+            self.data['spec']['dataSources'][0]['s3Source']['name'], \
+                self.data['spec']['dataSources'][0]['s3Source']['directory']+'/'+filePath.split('/')[-1])
 
 class HyKuFeBuilder:
     def __init__(self):
+        self.s3BucketName = 'storage'
+        self.s3Directory = 'data'
         self.name = "horovod-job-example"
         self.image = "horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu"
         self.cpu = "2000m"
@@ -47,6 +84,14 @@ class HyKuFeBuilder:
         self.gpu = 1
         self.replica = 2
 
+    def setS3BucketName(self, s3BucketName):
+        self.s3BucketName = s3BucketName
+        return self
+
+    def setS3Directory(self, s3Directory):
+        self.s3Directory = s3Directory
+        return self
+        
     def setName(self, name):
         self.name = name
         return self
@@ -71,8 +116,8 @@ class HyKuFeBuilder:
         self.replica = replica
         return self
 
-    def build(self):
-        return HyKuFe(self.name, self.image, self.cpu, self.memory, self.gpu, self.replica)
+    def build(self, accessKey, secretKey):
+        return HyKuFe(accessKey, secretKey, self.s3BucketName, self.s3Directory, self.name, self.image, self.cpu, self.memory, self.gpu, self.replica)
 
 
 # def readFunc():
