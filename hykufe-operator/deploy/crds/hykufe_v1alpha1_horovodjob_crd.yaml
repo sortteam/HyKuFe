@@ -1,0 +1,167 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: horovodjobs.hykufe.com
+spec:
+  group: hykufe.com
+  names:
+    kind: HorovodJob
+    listKind: HorovodJobList
+    plural: horovodjobs
+    singular: horovodjob
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            master:
+              description: Tasks specifies the task specification of Job
+              properties:
+                name:
+                  description: Name specifies the name of tasks
+                  type: string
+                replicas:
+                  description: Replicas specifies the replicas of this TaskSpec in
+                    Job
+                  format: int32
+                  type: integer
+                template:
+                  description: Specifies the pod that will be created for this TaskSpec
+                    when executing a Job
+                  type: object
+              type: object
+            maxRetry:
+              description: Specifies the maximum number of retries before marking
+                this Job failed. Defaults to 3.
+              format: int32
+              type: integer
+            priorityClassName:
+              description: If specified, indicates the job's priority.
+              type: string
+            ttlSecondsAfterFinished:
+              description: ttlSecondsAfterFinished limits the lifetime of a Job that
+                has finished execution (either Completed or Failed). If this field
+                is set, ttlSecondsAfterFinished after the Job finishes, it is eligible
+                to be automatically deleted. If this field is unset, the Job won't
+                be automatically deleted. If this field is set to zero, the Job becomes
+                eligible to be deleted immediately after it finishes.
+              format: int32
+              type: integer
+            volumes:
+              description: VolumeSpec
+              items:
+                properties:
+                  mountPath:
+                    description: Path within the container at which the volume should
+                      be mounted.  Must not contain ':'.
+                    type: string
+                  volumeClaim:
+                    description: VolumeClaim defines the PVC used by the VolumeMount.
+                    type: object
+                  volumeClaimName:
+                    description: defined the PVC name
+                    type: string
+                required:
+                - mountPath
+                type: object
+              type: array
+            worker:
+              properties:
+                name:
+                  description: Name specifies the name of tasks
+                  type: string
+                replicas:
+                  description: Replicas specifies the replicas of this TaskSpec in
+                    Job
+                  format: int32
+                  type: integer
+                template:
+                  description: Specifies the pod that will be created for this TaskSpec
+                    when executing a Job
+                  type: object
+              type: object
+          type: object
+        status:
+          properties:
+            controlledResources:
+              additionalProperties:
+                type: string
+              description: The resources that controlled by this job, e.g. Service,
+                ConfigMap
+              type: object
+            failed:
+              description: The number of pods which reached phase Failed.
+              format: int32
+              type: integer
+            minAvailable:
+              description: The minimal available pods to run for this Job
+              format: int32
+              type: integer
+            pending:
+              description: The number of pending pods.
+              format: int32
+              type: integer
+            retryCount:
+              description: The number of Job retries.
+              format: int32
+              type: integer
+            running:
+              description: The number of running pods.
+              format: int32
+              type: integer
+            state:
+              description: Current state of Job.
+              properties:
+                lastTransitionTime:
+                  description: Last time the condition transit from one phase to another.
+                  format: date-time
+                  type: string
+                message:
+                  description: Human-readable message indicating details about last
+                    transition.
+                  type: string
+                phase:
+                  description: The phase of Job.
+                  type: string
+                reason:
+                  description: Unique, one-word, CamelCase reason for the phase's
+                    last transition.
+                  type: string
+              type: object
+            succeeded:
+              description: The number of pods which reached phase Succeeded.
+              format: int32
+              type: integer
+            terminating:
+              description: The number of pods which reached phase Terminating.
+              format: int32
+              type: integer
+            unknown:
+              description: The number of pods which reached phase Unknown.
+              format: int32
+              type: integer
+            version:
+              description: Current version of job
+              format: int32
+              type: integer
+          type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
