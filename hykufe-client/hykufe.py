@@ -1,10 +1,11 @@
 from kubernetes import client, config, utils
+import boto3
 import yaml
 import json
 from pprint import pprint
 
 class HyKuFe:
-    def __init__(self, name, image, cpu, memory, gpu, replica):
+    def __init__(self, accessKey, secretKey, s3BucketName, s3Directory, name, image, cpu, memory, gpu, replica):
         
         # about kubernetes settings
         configuration = client.Configuration()
@@ -19,10 +20,14 @@ class HyKuFe:
         configuration.host = "127.0.0.1:8001"
 
         self.api_instance = client.CustomObjectsApi(client.ApiClient(configuration))
-        
+
+
         # about yaml
         self.data = yaml.load(open('template.yaml'), Loader=yaml.FullLoader)
-        
+
+        self.data['spec']['dataSources'][0]['s3Source']['name'] = s3BucketName
+        self.data['spec']['dataSources'][0]['s3Source']['directory'] = s3Directory
+
         self.data['metadata']['name'] = name
         self.data['spec']['master']['template']['spec']['containers'][0]['image'] \
             = self.data['spec']['worker']['template']['spec']['containers'][0]['image'] \
@@ -41,6 +46,10 @@ class HyKuFe:
         masterRequest['gpu'] = masterLimits['gpu'] = workerRequest['gpu'] = workerLimits['gpu'] = gpu
         
         self.data['spec']['worker']['replicas'] = replica
+        
+
+        # about aws settings
+        self.s3Client = boto3.client('s3', aws_access_key_id=accessKey, aws_secret_access_key=secretKey)
 
     def __str__(self):
         return json.dumps(self.data)
@@ -59,9 +68,15 @@ class HyKuFe:
         
         pprint(api_response)
 
+    def uploadFileToS3(self, filePath):
+        self.s3Client.upload_file(filePath, \
+            self.data['spec']['dataSources'][0]['s3Source']['name'], \
+                self.data['spec']['dataSources'][0]['s3Source']['directory']+'/'+filePath.split('/')[-1])
 
 class HyKuFeBuilder:
     def __init__(self):
+        self.s3BucketName = 'storage'
+        self.s3Directory = 'data'
         self.name = "horovod-job-example"
         self.image = "horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu"
         self.cpu = "2000m"
@@ -69,6 +84,14 @@ class HyKuFeBuilder:
         self.gpu = 1
         self.replica = 2
 
+    def setS3BucketName(self, s3BucketName):
+        self.s3BucketName = s3BucketName
+        return self
+
+    def setS3Directory(self, s3Directory):
+        self.s3Directory = s3Directory
+        return self
+        
     def setName(self, name):
         self.name = name
         return self
@@ -93,8 +116,8 @@ class HyKuFeBuilder:
         self.replica = replica
         return self
 
-    def build(self):
-        return HyKuFe(self.name, self.image, self.cpu, self.memory, self.gpu, self.replica)
+    def build(self, accessKey, secretKey):
+        return HyKuFe(accessKey, secretKey, self.s3BucketName, self.s3Directory, self.name, self.image, self.cpu, self.memory, self.gpu, self.replica)
 
 
 # def readFunc():

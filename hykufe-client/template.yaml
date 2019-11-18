@@ -13,6 +13,7 @@ spec:
   - name: s3-secret
     s3Source:
       directory: data
+      name: storage
       s3SecretName: s3-secret
   master:
     name: master
