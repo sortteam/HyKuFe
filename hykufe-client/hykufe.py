@@ -7,17 +7,12 @@ from pprint import pprint
 class HyKuFe:
     def __init__(self, accessKey, secretKey, s3BucketName, s3Directory, name, image, cpu, memory, gpu, replica):
         
-        # about kubernetes settings
         configuration = client.Configuration()
-        # configuration.api_key['authorization'] = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4tZHY1N3ciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImZmNWI3MGMzLWU3NTMtMTFlOS05NjI0LTcwODVjMjAyYmUyOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.JsJj2cp1kWyeZLz4Tm0NiCH7hwQOvlf1PtTXWX1k0drjev1LmXMJOIQk6GSAhlCK-eRUa2rLVENLtC6Tlo_hXVfl7frHDL1N6jjb3ZBpR4hvcxkCXPvkkr2mjIxGCKXcsPhGiGjZ1DazFxttT6Vh9DdZ04Oa8TiDP76Dqjo5Pfv3VvdV1YPLN8WXYEN-IJE7Et-tYgEz5eepxXACjISR6VsFly0os9F6RMLnkfxZxP-JOpZspmQPlnfTJXtpLRZGiLsAC3A7tEp2SLnHtPpmveIixK47HIpQXWNsTwOUZG9oTfDjRXODFAjiIn9dMRREfT1qjK4Wl6ovjyPGcxW0cA'
-        # # # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-        # configuration.api_key_prefix['authorization'] = 'Bearer'
-        
-        # configuration.api_key = {"authorization": "Bearer " + "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4tZHY1N3ciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImZmNWI3MGMzLWU3NTMtMTFlOS05NjI0LTcwODVjMjAyYmUyOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.JsJj2cp1kWyeZLz4Tm0NiCH7hwQOvlf1PtTXWX1k0drjev1LmXMJOIQk6GSAhlCK-eRUa2rLVENLtC6Tlo_hXVfl7frHDL1N6jjb3ZBpR4hvcxkCXPvkkr2mjIxGCKXcsPhGiGjZ1DazFxttT6Vh9DdZ04Oa8TiDP76Dqjo5Pfv3VvdV1YPLN8WXYEN-IJE7Et-tYgEz5eepxXACjISR6VsFly0os9F6RMLnkfxZxP-JOpZspmQPlnfTJXtpLRZGiLsAC3A7tEp2SLnHtPpmveIixK47HIpQXWNsTwOUZG9oTfDjRXODFAjiIn9dMRREfT1qjK4Wl6ovjyPGcxW0cA" }
-        
-        # configuration.verify_ssl = False
-        # configuration.host = "https://172.16.100.100:6443"
-        configuration.host = "127.0.0.1:8001"
+        configuration.api_key['authorization'] = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Imh5a3VmZS1vcGVyYXRvci10b2tlbi0yczk2YiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJoeWt1ZmUtb3BlcmF0b3IiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI2MDU3MzU0MC0wOWM5LTExZWEtYWRhMy03MDg1YzIwMmJlMjkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDpoeWt1ZmUtb3BlcmF0b3IifQ.kuAi5vSpiBsxEy22ycncVSqR387XSXQuAHEmqfyhGzLymQt-ZnMV1WDOreP4q7Vku-oEhKAZrnaUEif5bAHq_kjVazue6WlFxghZpnmUDFM5GLQsATqp9aIjLBm4vFoVe0b4D9uVLKGm7bFXVRiI1aULvVgU6N0lDeDzYtIygpH6-QAUdgkrR1LoBAVCTyR74TqYnAChZuigcwIyqEtz1OZXmRtec3yLTXwpKhfg7DMKPYZiieJzBJqPJbF-sVPwHdkL5332RB-1IGm0SViNMqYuU5iL0dSOeJ_xm8aK9QST9ob78nKgxTnAyzATrW9cRKQoErZmrIXxBKoSkzGWXQ'
+        configuration.api_key_prefix['authorization'] = 'Bearer'
+                
+        configuration.verify_ssl = False
+        configuration.host = "https://172.16.100.100:6443"
 
         self.api_instance = client.CustomObjectsApi(client.ApiClient(configuration))
 
