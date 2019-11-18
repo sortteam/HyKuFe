@@ -1,4 +1,4 @@
-# PythonTrainingManager
+# HyKuFe
 ## 개요
 
 학습 코드와 데이터만 설정하면 자동으로 Horovod 분산 학습 환경을 설정하고 학습을 해주는 파이썬 코드입니다.
