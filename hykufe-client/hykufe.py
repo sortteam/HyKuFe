@@ -1,10 +1,53 @@
+from kubernetes import client, config, utils
+import boto3
 import yaml
 import json
-
+from pprint import pprint
 
 class HyKuFe:
-    def __init__(self, name, image, cpu, memory, gpu, replica):
-        self.data = {'apiVersion': 'hykufe.com/v1alpha1', 'kind': 'HorovodJob', 'metadata': {'name': name, 'labels': {'volcano.sh/job-type': 'Horovod'}}, 'spec': {'schedulerName': 'volcano', 'dataShareMode': {'nfsMode': {'ipAddress': '10.233.96.94', 'path': '/volume'}}, 'dataSources': [{'name': 's3-secret', 's3Source': {'s3SecretName': 's3-secret', 'directory': 'data'}}], 'volumes': [{'volumeClaimName': 'data-volume', 'mountPath': '/data', 'volumeClaim': {'accessModes': ['ReadWriteMany'], 'storageClassName': 'manual', 'resources': {'requests': {'storage': '20Gi'}}, 'volumeMode': 'FileSystem'}}], 'master': {'replicas': 1, 'name': 'master', 'template': {'spec': {'containers': [{'command': ['/bin/bash', '-c', 'set -o pipefail;\nWORKER_HOST=`cat /etc/volcano/worker.host | tr "\\n" ","`;\nmkdir -p /var/run/sshd; /usr/sbin/sshd;\nmkdir -p /result/log;\nsleep 10;\nmpiexec --allow-run-as-root --host ${WORKER_HOST} -np 2 python /examples/tensorflow2_mnist.py 2>&1 | tee /result/log/mpi_log;\n'], 'image': image, 'name': 'master', 'ports': [{'containerPort': 22, 'name': 'job-port'}], 'resources': {'requests': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}, 'limits': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}}}], 'restartPolicy': 'OnFailure', 'imagePullSecrets': [{'name': 'default-secret'}]}}}, 'worker': {'replicas': replica, 'name': 'worker', 'template': {'spec': {'containers': [{'command': ['/bin/sh', '-c', 'mkdir -p /var/run/sshd; /usr/sbin/sshd -D;\n'], 'image': image, 'name': 'worker', 'ports': [{'containerPort': 22, 'name': 'job-port'}], 'resources': {'requests': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}, 'limits': {'cpu': cpu, 'memory': memory, 'nvidia.com/gpu': gpu}}}], 'restartPolicy': 'OnFailure', 'imagePullSecrets': [{'name': 'default-secret'}]}}}}}
+    def __init__(self, accessKey, secretKey, s3BucketName, s3Directory, name, image, cpu, memory, gpu, replica):
+        
+        config.load_kube_config()
+        configuration = client.Configuration()
+        secrets = client.CoreV1Api().list_namespaced_secret("default").items
+        for item in secrets:
+            if "hykufe" in item.metadata.name:
+                configuration.api_key['authorization'] = item.data['token']
+                break
+        configuration.api_key_prefix['authorization'] = 'Bearer'
+                
+        configuration.verify_ssl = False
+        configuration.host = "https://172.16.100.100:6443"
+
+        self.api_instance = client.CustomObjectsApi(client.ApiClient(configuration))
+
+
+        # about yaml
+        self.data = yaml.load(open('template.yaml'), Loader=yaml.FullLoader)
+
+        self.data['spec']['dataSources'][0]['s3Source']['name'] = s3BucketName
+        self.data['spec']['dataSources'][0]['s3Source']['directory'] = s3Directory
+
+        self.data['metadata']['name'] = name
+
+        master = self.data['spec']['master']['template']['spec']['containers'][0]
+        worker = self.data['spec']['worker']['template']['spec']['containers'][0]
+        master['image'] = worker['image'] = image
+       
+        masterRequest = master['resources']['requests']
+        masterLimits = master['resources']['limits']
+        workerRequest = worker['resources']['requests']
+        workerLimits = worker['resources']['limits']
+
+        masterRequest['cpu'] = masterLimits['cpu'] = workerRequest['cpu'] = workerLimits['cpu'] = cpu
+        masterRequest['memory'] = masterLimits['memory'] = workerRequest['memory'] = workerLimits['memory'] = memory
+        masterRequest['gpu'] = masterLimits['gpu'] = workerRequest['gpu'] = workerLimits['gpu'] = gpu
+        
+        self.data['spec']['worker']['replicas'] = replica
+        
+
+        # about aws settings
+        self.s3Client = boto3.client('s3', aws_access_key_id=accessKey, aws_secret_access_key=secretKey)
 
     def __str__(self):
         return json.dumps(self.data)
@@ -12,9 +55,26 @@ class HyKuFe:
     def writeYamlFile(self, file_name):
         yaml.dump(self.data, open(file_name, 'w'))
 
+    def createJOB(self):
+        group = 'hykufe.com' # str | The custom resource's group name
+        version = 'v1alpha1' # str | The custom resource's versionc
+        plural = 'horovodjobs' # str | The custom resource's plural name. For TPRs this would be lowercase plural kind.
+        namespace = 'default'
+        name = ''
+        pretty = 'true' # str | If 'true', then the output is pretty printed. (optional)
+        api_response = self.api_instance.create_namespaced_custom_object(group, version, namespace, plural, self.data, pretty=pretty)
+        
+        pprint(api_response)
+
+    def uploadFileToS3(self, filePath):
+        self.s3Client.upload_file(filePath, \
+            self.data['spec']['dataSources'][0]['s3Source']['name'], \
+                self.data['spec']['dataSources'][0]['s3Source']['directory']+'/'+filePath.split('/')[-1])
 
 class HyKuFeBuilder:
     def __init__(self):
+        self.s3BucketName = 'storage'
+        self.s3Directory = 'data'
         self.name = "horovod-job-example"
         self.image = "horovod/horovod:0.18.2-tf2.0.0-torch1.3.0-mxnet1.5.0-py3.6-gpu"
         self.cpu = "2000m"
@@ -22,6 +82,14 @@ class HyKuFeBuilder:
         self.gpu = 1
         self.replica = 2
 
+    def setS3BucketName(self, s3BucketName):
+        self.s3BucketName = s3BucketName
+        return self
+
+    def setS3Directory(self, s3Directory):
+        self.s3Directory = s3Directory
+        return self
+        
     def setName(self, name):
         self.name = name
         return self
@@ -46,8 +114,8 @@ class HyKuFeBuilder:
         self.replica = replica
         return self
 
-    def build(self):
-        return HyKuFe(self.name, self.image, self.cpu, self.memory, self.gpu, self.replica)
+    def build(self, accessKey, secretKey):
+        return HyKuFe(accessKey, secretKey, self.s3BucketName, self.s3Directory, self.name, self.image, self.cpu, self.memory, self.gpu, self.replica)
 
 
 # def readFunc():
