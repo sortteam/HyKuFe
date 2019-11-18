@@ -9,17 +9,15 @@ class HyKuFe:
         self.data = yaml.load(open('template.yaml'), Loader=yaml.FullLoader)
         
         self.data['metadata']['name'] = name
-        self.data['spec']['master']['template']['spec']['containers'][0]['image'] \
-            = self.data['spec']['worker']['template']['spec']['containers'][0]['image'] \
-                = image
 
-        master = self.data['spec']['master']['template']['spec']['containers'][0]['resources']
-        masterRequest = master['requests']
-        masterLimits = master['limits']
-
-        worker = self.data['spec']['worker']['template']['spec']['containers'][0]['resources']
-        workerRequest = worker['requests']
-        workerLimits = worker['limits']
+        master = self.data['spec']['master']['template']['spec']['containers'][0]
+        worker = self.data['spec']['worker']['template']['spec']['containers'][0]
+        master['image'] = worker['image'] = image
+       
+        masterRequest = master['resources']['requests']
+        masterLimits = master['resources']['limits']
+        workerRequest = worker['resources']['requests']
+        workerLimits = worker['resources']['limits']
 
         masterRequest['cpu'] = masterLimits['cpu'] = workerRequest['cpu'] = workerLimits['cpu'] = cpu
         masterRequest['memory'] = masterLimits['memory'] = workerRequest['memory'] = workerLimits['memory'] = memory
