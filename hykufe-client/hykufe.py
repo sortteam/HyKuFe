@@ -7,8 +7,13 @@ from pprint import pprint
 class HyKuFe:
     def __init__(self, accessKey, secretKey, s3BucketName, s3Directory, name, image, cpu, memory, gpu, replica):
         
+        config.load_kube_config()
         configuration = client.Configuration()
-        configuration.api_key['authorization'] = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Imh5a3VmZS1vcGVyYXRvci10b2tlbi0yczk2YiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJoeWt1ZmUtb3BlcmF0b3IiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI2MDU3MzU0MC0wOWM5LTExZWEtYWRhMy03MDg1YzIwMmJlMjkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDpoeWt1ZmUtb3BlcmF0b3IifQ.kuAi5vSpiBsxEy22ycncVSqR387XSXQuAHEmqfyhGzLymQt-ZnMV1WDOreP4q7Vku-oEhKAZrnaUEif5bAHq_kjVazue6WlFxghZpnmUDFM5GLQsATqp9aIjLBm4vFoVe0b4D9uVLKGm7bFXVRiI1aULvVgU6N0lDeDzYtIygpH6-QAUdgkrR1LoBAVCTyR74TqYnAChZuigcwIyqEtz1OZXmRtec3yLTXwpKhfg7DMKPYZiieJzBJqPJbF-sVPwHdkL5332RB-1IGm0SViNMqYuU5iL0dSOeJ_xm8aK9QST9ob78nKgxTnAyzATrW9cRKQoErZmrIXxBKoSkzGWXQ'
+        secrets = client.CoreV1Api().list_namespaced_secret("default").items
+        for item in secrets:
+            if "hykufe" in item.metadata.name:
+                configuration.api_key['authorization'] = item.data['token']
+                break
         configuration.api_key_prefix['authorization'] = 'Bearer'
                 
         configuration.verify_ssl = False
