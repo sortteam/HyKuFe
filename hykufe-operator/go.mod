@@ -6,9 +6,11 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.0
 	github.com/operator-framework/operator-sdk v0.10.1-0.20190906161029-1cb0481ca946
+	github.com/pkg/errors v0.8.1
 	github.com/spf13/pflag v1.0.3
 	github.com/volcano-sh/volcano v0.0.0-20190830035915-92484dae9086
 	golang.org/x/build v0.0.0-20190314133821-5284462c4bec
+	golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
 	k8s.io/client-go v11.0.0+incompatible

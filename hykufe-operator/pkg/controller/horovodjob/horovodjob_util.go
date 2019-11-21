@@ -25,3 +25,15 @@ func (r *ReconcileHorovodJob) UpdateState(instance *v1alpha1.HorovodJob, phase v
 
 	return nil
 }
+
+func (r *ReconcileHorovodJob) UpdateStateWithMessage(instance *v1alpha1.HorovodJob, phase v1alpha1.JobPhase, message string) error {
+	instance.Status.State.Phase = phase
+	instance.Status.State.Message = message
+	instance.Status.State.LastTransitionTime = v1.Now()
+
+	if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+		return err
+	}
+
+	return nil
+}

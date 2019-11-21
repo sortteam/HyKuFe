@@ -114,7 +114,13 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 
 	err2 := r.controlProvisioning(instance, reqLogger)
 	if err2 != nil {
-		return reconcile.Result{}, err2
+		reqLogger.Error(err2, "Failed Provisioning")
+		r.UpdateStateWithMessage(instance, hykufev1alpha1.Failed, err2.Error())
+
+		return reconcile.Result{
+			Requeue:      false,
+			RequeueAfter: 0,
+		}, nil
 	}
 
 	time, err := r.controlPreprocessingJob(instance, reqLogger)
@@ -349,10 +355,25 @@ func (r *ReconcileHorovodJob) controlPreprocessingJob(instance *hykufev1alpha1.H
 	return 0, nil
 }
 
+func (r *ReconcileHorovodJob) controlPostprcessing(instance *hykufev1alpha1.HorovodJob, reqLogger logr.Logger) error {
+	nowState := instance.Status.State.Phase
+	if !(nowState == hykufev1alpha1.PostProcessing) {
+		return nil
+	}
+
+
+	return nil
+}
+
 func (r *ReconcileHorovodJob) controlProvisioning(instance *hykufev1alpha1.HorovodJob, reqLogger logr.Logger) error {
 
 	nowState := instance.Status.State.Phase
 	if instance.Spec.AwsSpec == nil {
+		if nowState == "" {
+			if err := r.UpdateState(instance, hykufev1alpha1.Provisioned); err != nil {
+
+			}
+		}
 		return nil
 	}
 
@@ -366,7 +387,9 @@ func (r *ReconcileHorovodJob) controlProvisioning(instance *hykufev1alpha1.Horov
 			reqLogger.Error(err, "Fail to Update Horovod State")
 			return err
 		}
-
+		if len(instance.Status.InstanceID) != 0 {
+			return nil
+		}
 		// AWS 스펙에 맞게 인스턴스 생성
 		reqLogger.Info("Create EC2 Instance...")
 		ec2Instances, err := r.awsController.CreateEC2Instance(instance.Spec.AwsSpec.InstanceType, instance.Spec.AwsSpec.Replicas)
@@ -374,6 +397,7 @@ func (r *ReconcileHorovodJob) controlProvisioning(instance *hykufev1alpha1.Horov
 			reqLogger.Error(err, "Fail to create EC2 Instances")
 			return err
 		}
+
 		instance.Status.InstanceID = []string{}
 		for _, ec2Info := range ec2Instances {
 			instance.Status.InstanceID = append(instance.Status.InstanceID, *ec2Info.InstanceId)
@@ -383,6 +407,12 @@ func (r *ReconcileHorovodJob) controlProvisioning(instance *hykufev1alpha1.Horov
 			reqLogger.Error(err, "Fail to Update Horovod State Provisioned")
 			return err
 		}
+
+		//if err := r.awsController.Clustering(&ec2Instances); err != nil {
+		//	reqLogger.Error(err, "Failed to Clustering")
+		//	return err
+		//}
+
 		reqLogger.Info("Created EC2 Instance!!!")
 	}
 

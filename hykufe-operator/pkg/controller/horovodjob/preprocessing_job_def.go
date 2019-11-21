@@ -51,6 +51,12 @@ func (r *ReconcileHorovodJob) newPreProcessingJob(cr *hykufev1alpha1.HorovodJob)
 		},
 	}
 
+	if cr.Spec.AwsSpec != nil {
+		jobDefinition.Spec.Template.Spec.NodeSelector = map[string]string {
+			"cloud-type": "aws",
+		}
+	}
+
 	if len(cr.Spec.DataSources) == 0 {
 		return nil, nil
 	}

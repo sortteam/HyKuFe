@@ -59,6 +59,15 @@ func (r *ReconcileHorovodJob) newVolcanoJobForCR(cr *hykufev1alpha1.HorovodJob) 
 		},
 	}
 
+	if cr.Spec.AwsSpec != nil {
+		volcanojob.Spec.Tasks[0].Template.Spec.NodeSelector = map[string]string {
+			"cloud-type": "aws",
+		}
+
+		volcanojob.Spec.Tasks[1].Template.Spec.NodeSelector = map[string]string {
+			"cloud-type": "aws",
+		}
+	}
 
 	// add Sidecar Container
 	//volcanojob.Spec.Tasks[0].Template.Spec.Container

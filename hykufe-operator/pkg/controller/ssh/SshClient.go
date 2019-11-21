@@ -2,8 +2,10 @@ package ssh
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 )
@@ -13,13 +15,18 @@ type SshClient struct {
 	Session *ssh.Session
 }
 
-func (sc *SshClient) NewSshClient(address string, port int64, password string) error {
+func (sc *SshClient) NewSshClient(address string, port int) error {
+	auth, err := publicKeyFile("/ec2-key/key.pem")
+	if err != nil {
+		return errors.Errorf("Failed load key file %v", err)
+	}
+
 	sshConfig := &ssh.ClientConfig{
-		Config:            ssh.Config{},
 		User:              "sort-server-1",
 		Auth: []ssh.AuthMethod{
-			ssh.Password(password),
+			auth,
 		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:           time.Second * 10,
 	}
 
@@ -70,4 +77,20 @@ func (sc *SshClient) CommandExecution(command string) error {
 	}
 
 	return nil
+}
+
+func publicKeyFile(file string) (ssh.AuthMethod, error) {
+	buffer, err := ioutil.ReadFile(file)
+
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := ssh.ParsePrivateKey(buffer)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ssh.PublicKeys(key), nil
 }
