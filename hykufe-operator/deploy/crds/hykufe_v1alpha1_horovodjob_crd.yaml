@@ -29,6 +29,52 @@ spec:
           type: object
         spec:
           properties:
+            awsSpec:
+              properties:
+                instanceType:
+                  type: string
+                replicas:
+                  format: int64
+                  type: integer
+              required:
+              - instanceType
+              - replicas
+              type: object
+            dataShareMode:
+              description: Data share mode
+              properties:
+                nfsMode:
+                  description: NFS 모드, 데이터가 NFS에 복사되고 각 파드가 NFS를 PV로 마운트하여 사용하게 된다.
+                  properties:
+                    ipAddress:
+                      type: string
+                    path:
+                      type: string
+                  required:
+                  - ipAddress
+                  type: object
+              type: object
+            dataSources:
+              items:
+                properties:
+                  name:
+                    type: string
+                  s3Source:
+                    properties:
+                      directory:
+                        description: Directory Name
+                        type: string
+                      s3SecretName:
+                        description: S3 Secret Name
+                        type: string
+                    required:
+                    - s3SecretName
+                    - directory
+                    type: object
+                required:
+                - name
+                type: object
+              type: array
             master:
               description: Tasks specifies the task specification of Job
               properties:
@@ -108,6 +154,11 @@ spec:
               description: The number of pods which reached phase Failed.
               format: int32
               type: integer
+            instanceID:
+              description: Provisioning
+              items:
+                type: string
+              type: array
             minAvailable:
               description: The minimal available pods to run for this Job
               format: int32

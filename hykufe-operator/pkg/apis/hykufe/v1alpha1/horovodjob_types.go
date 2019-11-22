@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	volcanov1alpha1 "github.com/volcano-sh/volcano/pkg/apis/batch/v1alpha1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -17,7 +18,14 @@ type HorovodJobSpec struct {
 
 
 	// VolumeSpec
-	Volumes []VolumeSpec `json:"volumes,omitempty"`
+	Volumes []volcanov1alpha1.VolumeSpec `json:"volumes,omitempty"`
+
+	DataSources []DataSourceSpec `json:"dataSources,omitempty"`
+
+	AwsSpec *AwsSpec `json:"awsSpec,omitempty"`
+
+	// Data share mode
+	DataShareMode DataShareSpec `json:"dataShareMode,omitempty"`
 
 	// Tasks specifies the task specification of Job
 	Master TaskSpec `json:"master,omitempty"`
@@ -42,6 +50,7 @@ type HorovodJobSpec struct {
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,10,opt,name=priorityClassName"`
 }
+
 
 // TaskSpec specifies the task specification of Job
 type TaskSpec struct {
@@ -88,6 +97,17 @@ type HorovodJob struct {
 type JobPhase string
 
 const (
+
+	Provisioning JobPhase = "Provisioning"
+
+	Provisioned JobPhase = "Provisioned"
+
+	// Main Job이 실행되기전 초기화 등을 수행
+	Preprocessing JobPhase = "Preprocessing"
+
+	// Preprocessing 작업 완료 상태
+	Preprocessed JobPhase = "Preprocessed"
+
 	// Pending is the phase that job is pending in the queue, waiting for scheduling decision
 	Pending JobPhase = "Pending"
 	// Aborting is the phase that job is aborted, waiting for releasing pods
@@ -106,6 +126,9 @@ const (
 	Terminating JobPhase = "Terminating"
 	// Terminated is the phase that the job is finished unexpected, e.g. events
 	Terminated JobPhase = "Terminated"
+
+	// job이 완료된 후 처리되는 상태
+	PostProcessing JobPhase = "PostProcessing"
 	// Failed is the phase that the job is restarted failed reached the maximum number of retries.
 	Failed JobPhase = "Failed"
 )
@@ -133,6 +156,9 @@ type HorovodJobState struct {
 type HorovodJobStatus struct {
 	// Current state of Job.
 	State HorovodJobState `json:"state,omitempty" protobuf:"bytes,1,opt,name=state"`
+
+	// Provisioning
+	InstanceID []string `json:"instanceID,omitempty"`
 
 	// The minimal available pods to run for this Job
 	// +optional
@@ -179,9 +205,36 @@ type HorovodJobStatus struct {
 type HorovodJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HorovodJob `json:"items"`
+	Items           []HorovodJob `json:"items"` 
 }
 
 func init() {
 	SchemeBuilder.Register(&HorovodJob{}, &HorovodJobList{})
+}
+
+func (h *HorovodJob) MyDeepCopy() *HorovodJob {
+	// Deep copy horovodjob cr
+	//var copiedHorovodJob *hykufev1alpha1.HorovodJob
+	copiedHorovodJob := &HorovodJob{}
+	*copiedHorovodJob = *h
+
+
+	copiedHorovodJob.Spec.Volumes = make([]volcanov1alpha1.VolumeSpec, len(h.Spec.Volumes))
+	//copy(copiedHorovodJob.Spec.Volumes, cr.Spec.Volumes)
+
+	copiedHorovodJob.Spec.DataSources = make([] DataSourceSpec, len(h.Spec.DataSources))
+	//copy(copiedHorovodJob.Spec.DataSources, cr.Spec.DataSources)
+	for i, _ := range copiedHorovodJob.Spec.DataSources {
+		copiedHorovodJob.Spec.DataSources[i].S3Source = &S3Spec{}
+		*copiedHorovodJob.Spec.DataSources[i].S3Source = *h.Spec.DataSources[i].S3Source
+	}
+
+	copiedHorovodJob.Spec.Master.Template.Spec.Containers = make([] v1.Container, len(h.Spec.Master.Template.Spec.Containers))
+	copy(copiedHorovodJob.Spec.Master.Template.Spec.Containers, h.Spec.Master.Template.Spec.Containers)
+
+	copiedHorovodJob.Spec.Worker.Template.Spec.Containers = make([] v1.Container, len(h.Spec.Worker.Template.Spec.Containers))
+	copy(copiedHorovodJob.Spec.Worker.Template.Spec.Containers, h.Spec.Worker.Template.Spec.Containers)
+
+	return copiedHorovodJob
+
 }

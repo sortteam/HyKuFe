@@ -15,6 +15,7 @@ rules:
   - events
   - configmaps
   - secrets
+  - jobs
   verbs:
   - '*'
 - apiGroups:
@@ -63,5 +64,12 @@ rules:
   - batch.volcano.sh
   resources:
   - '*'
+  verbs:
+  - '*'
+- apiGroups:
+  - batch
+  - extensions
+  resources:
+  - jobs
   verbs:
   - '*'

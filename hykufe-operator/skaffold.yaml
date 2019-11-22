@@ -1,0 +1,24 @@
+apiVersion: skaffold/v1beta15	# 	version of the configuration.
+kind: Config	# 	always Config.
+metadata:	# 	holds additional information about the config.
+  name: hykufe-operator # 	an identifier for the project.
+build:
+  artifacts:
+    - image: yoowj7472/hykufe-operator
+      custom:
+        buildCommand: ./build.sh
+        dependencies:    # 	file dependencies that skaffold should watch for both rebuilding and file syncing for this artifact.
+          dockerfile:    # 	should be set if the artifact is built from a Dockerfile, from which skaffold can determine dependencies.
+           # path:   # 	locates the Dockerfile relative to workspace.
+           # buildArgs:    # 	arguments passed to the docker build. It also accepts environment variables via the go template syntax.
+           #   key1: value1    #
+           #   key2: value2    #
+           #   key3: {{.ENV_VARIABLE}}    #
+          command:    # 	represents a custom command that skaffold executes to obtain dependencies. The output of this command must be a valid JSON array.
+          paths: [./deploy, ./pkg]    # 	should be set to the file dependencies for this artifact, so that the skaffold file watcher knows when to rebuild and perform file synchronization.
+          ignore: [./deploy/crds/hykufe_v1alpha1_horovodjob_cr.yaml]    # 	specifies the paths that should be ignored by skaffold's file watcher. If a file exists in both paths and in ignore, it will be ignored, and will be excluded from both rebuilds and file synchronization. Will only work in conjunction with paths.
+deploy:
+  kubectl:    # 	beta uses a client side kubectl apply to deploy manifests. You'll need a kubectl CLI version installed that's compatible with your cluster.
+    manifests:    # 	the Kubernetes yaml or json manifests.
+    - deploy/*.yaml
+    #- deploy/crds/hykufe_v1alpha1_horovodjob_crd.yaml

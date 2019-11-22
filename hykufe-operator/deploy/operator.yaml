@@ -13,10 +13,11 @@ spec:
         name: hykufe-operator
     spec:
       serviceAccountName: hykufe-operator
+      dnsPolicy: ClusterFirst
       containers:
         - name: hykufe-operator
           # Replace this with the built image name
-          image: yoowj7472/hykufe-operator:v0.0.1
+          image: yoowj7472/hykufe-operator
           command:
           - hykufe-operator
           imagePullPolicy: Always
@@ -31,3 +32,18 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "hykufe-operator"
+          envFrom:
+            - secretRef:
+                name: aws-credential-secret
+          volumeMounts:
+            - mountPath: /ec2-key
+              name: key-volume
+
+      volumes:
+        - name: key-volume
+          configMap:
+            name: operator-key
+            items:
+              - key: private-key
+                path: key.pem
+

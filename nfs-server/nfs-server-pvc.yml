@@ -1,0 +1,16 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nfs-server-pvc
+  labels:
+    cluster-type: private
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  selector:
+    matchLabels:
+      cluster-type: private
