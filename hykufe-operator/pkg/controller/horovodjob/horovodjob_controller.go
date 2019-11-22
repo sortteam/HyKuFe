@@ -135,6 +135,11 @@ func (r *ReconcileHorovodJob) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
+	err = r.controlPostprcessing(instance, reqLogger)
+	if err != nil {
+		return reconcile.Result{}, err;
+	}
+
 
 	// Define a new Object
 	volcanoJob, err := r.newVolcanoJobForCR(instance)
@@ -361,6 +366,65 @@ func (r *ReconcileHorovodJob) controlPostprcessing(instance *hykufev1alpha1.Horo
 		return nil
 	}
 
+	postprocessingJob, err := r.newPostProcessingPod(instance)
+	if err != nil {
+		reqLogger.Error(err, "Fail to make postprocessing job")
+		return err
+	}
+
+	foundPostprocessingJob := &v1.Job{}
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{
+		Namespace: postprocessingJob.Namespace,
+		Name:      postprocessingJob.Name,
+	}, foundPostprocessingJob)
+
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Postprocessing Job")
+		err = r.client.Create(context.TODO(), postprocessingJob)
+		if err != nil {
+			reqLogger.Error(err, "Fail to create Postprocessing job")
+			return err
+		}
+	}
+
+	if instance.Status.State.Phase == hykufev1alpha1.PostProcessing {
+		reqLogger.Info("wait to finalize Postprocessing job")
+		condition := foundPostprocessingJob.Status.Conditions
+		reqLogger.Info(fmt.Sprintf("%s", DefinitionToJson(foundPostprocessingJob)))
+		// preprocessing job이 성공했을 때
+		if len(condition) != 0 &&
+			(condition[0].Type == v1.JobComplete ||
+				condition[0].Type == v1.JobFailed) {
+
+
+
+			// preprocessing job이 완료되면 horovod job의 상태를 preprocessed로 변경
+			if condition[len(condition) - 1].Type == v1.JobComplete{
+				instance.Status.State.Phase = hykufev1alpha1.Completed
+			} else if condition[len(condition) - 1].Type == v1.JobFailed {
+				instance.Status.State.Phase = hykufev1alpha1.Failed
+			}
+			instance.Status.State.LastTransitionTime = metav1.Now()
+
+			// 임시 PVC 삭제
+			//if err := r.client.Delete(context.TODO(), pvc); err != nil {
+			//	reqLogger.Error(err, "fail to delete temp pvc")
+			//	return 0, err
+			//}
+
+			// 상태 업데이트
+
+			updateErr := r.UpdateState(instance, hykufev1alpha1.Completed)
+			if updateErr != nil {
+				reqLogger.Error(updateErr, "fail to update horovodjob instance")
+				return err
+			}
+		}
+
+
+		return nil
+	}
 
 	return nil
 }

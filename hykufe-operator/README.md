@@ -2,6 +2,19 @@
 # Hykufe Operator
 hykufe.com/hykufe-operator
 
+## Prerequisite
+### NFS Server
+만약 분산학습을 위한 NFS가 없는 경우 임시 nfs server를 설정할 수 있다.
+```
+$ kubectl create -f nfs-server/nfs-server-pv.yml
+$ kubectl create -f nfs-server/nfs-server-pvc.yml
+$ kubectl create -f nfs-server/nfs-server-deployment.yml
+```
+
+AWS 인스턴스를 동적으로 프로비저닝하고 하이브리드 클러스터를 구성하려면 AWS 액세스 키가 필요하다.
+
+
+
 ## Build and run the operator
 operator를 동작시키기 전에 CRD가 쿠버네티스 apiserver에 등록되어야 한다.
 ```
